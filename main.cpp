@@ -7,6 +7,8 @@
 #include <list>
 #include <cctype>
 #include <tuple>
+#include <chrono>
+#include <sstream>
 
 int fromChar( char ch, int base, bool & aOK )
 {
@@ -83,6 +85,57 @@ int64_t fromString( const std::string & str, int base )
     return retVal;
 }
 
+std::string getTimeString( const std::pair< std::chrono::system_clock::time_point, std::chrono::system_clock::time_point > & startEndTime, bool reportTotalSeconds, bool highPrecision )
+{
+    auto duration = startEndTime.second - startEndTime.first;
+
+    double totalSeconds = 1.0*std::chrono::duration_cast<std::chrono::seconds>(duration).count();
+    if ( highPrecision )
+        totalSeconds = std::chrono::duration_cast<std::chrono::duration< double, std::micro >>(duration).count() / 1000000.0;
+    auto hrs = std::chrono::duration_cast<std::chrono::hours>(duration).count();
+    auto mins = std::chrono::duration_cast<std::chrono::minutes>(duration).count() - (hrs * 60);
+    double secs = 1.0*std::chrono::duration_cast<std::chrono::seconds>(duration).count();
+    if ( highPrecision )
+        secs = (std::chrono::duration_cast<std::chrono::duration< double, std::micro >>(duration).count()) / 1000000.0;
+    secs -= ((mins * 60) + (hrs * 3600));
+
+    std::ostringstream oss;
+    if ( hrs > 0 )
+    {
+        oss << hrs << " hour";
+        if ( hrs != 1 )
+            oss << "s";
+        oss << ", ";
+    }
+
+    if ( mins > 0 )
+    {
+        oss << mins << " minute";
+        if ( mins != 1 )
+            oss << "s";
+        oss << ", ";
+    }
+
+    if ( highPrecision )
+    {
+        oss.setf( std::ios::fixed, std::ios::floatfield );
+        oss.precision( 6 );
+    }
+
+    oss << secs << " second";
+
+    if ( secs != 1 )
+        oss << "s";
+    if ( reportTotalSeconds && (totalSeconds > 60) )
+    {
+        oss << ", (" << totalSeconds << " second";
+        if ( totalSeconds != 1 )
+            oss << "s";
+        oss << ")";
+    }
+    return oss.str();
+}
+
 class CNarcissisticNumCalculator
 {
 public:
@@ -134,10 +187,12 @@ public:
     void run()
     {
         report();
+        fRunTime.first = std::chrono::system_clock::now();
         createHandles();
         while ( !isFinished() )
             ;
 
+        fRunTime.second = std::chrono::system_clock::now();
         reportFindings();
     }
 private:
@@ -185,7 +240,9 @@ private:
             else
                 std::cout << "    ";
             first = false;
-            std::cout << toString( currVal, fBase ) << "(=" << currVal << ")";
+            std::cout << toString( currVal, fBase );
+            if ( fBase != 10 )
+                std::cout << "(=" << currVal << ")";
             ii++;
         }
         std::cout << "\n";
@@ -193,6 +250,7 @@ private:
 
     void reportFindings() const
     {
+        std::cout << "=============================================\n";
         std::cout << "There are " << fNarcissisticNumbers.size() << " Narcissistic numbers";
         if ( fNumbers.empty() )
             std::cout << " less than or equal to " << fMax << "." << std::endl;
@@ -200,6 +258,8 @@ private:
             std::cout << " in the requested list." << std::endl;
         fNarcissisticNumbers.sort();
         dumpNumbers( fNarcissisticNumbers );
+        std::cout << "=============================================\n";
+        std::cout << "Runtime: " << getTimeString( fRunTime, true, true ) << std::endl;
     }
 
     void report() const
@@ -228,7 +288,7 @@ private:
             //std::cout << curr << " is Narcissistic? " << (isNarcissistic ? "yes" : "no") << std::endl;
             addNarcissisticValue( value );
         }
-        return std::make_pair( true, isNarcissistic );
+        return std::make_pair( isNarcissistic, true );
     }
     void findNarcissisticRange( int num, int64_t min, int64_t max )
     {
@@ -337,6 +397,8 @@ private:
 
     std::mutex fMutex;
     mutable std::list< int64_t > fNarcissisticNumbers;
+
+    std::pair< std::chrono::system_clock::time_point, std::chrono::system_clock::time_point > fRunTime;
 };
 
 int main( int argc, char ** argv )
