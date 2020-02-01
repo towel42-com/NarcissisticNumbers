@@ -153,13 +153,21 @@ public:
                     aOK = false;
                 }
             }
+            else if ( strncmp( argv[ ii ], "-min", 4 ) == 0 )
+            {
+                fRange.first = getInt( ii, argc, argv, "-min", aOK );
+            }
             else if ( strncmp( argv[ ii ], "-max", 4 ) == 0 )
             {
-                fMax = getInt( ii, argc, argv, "-max", aOK );
+                fRange.second = getInt( ii, argc, argv, "-max", aOK );
             }
             else if ( strncmp( argv[ ii ], "-thread_max", 11 ) == 0 )
             {
                 fThreadMax = getInt( ii, argc, argv, "-max", aOK );
+            }
+            else if ( strncmp( argv[ ii ], "-report_seconds", 15 ) == 0 )
+            {
+                fReportSeconds = getInt( ii, argc, argv, "-report_seconds", aOK );
             }
             else if ( strncmp( argv[ ii ], "-numbers", 8 ) == 0 )
             {
@@ -170,12 +178,20 @@ public:
                 }
                 while ( aOK )
                 {
+                    if ( argv[ ii + 1 ][ 0 ] == '-' )
+                        break;
+
                     auto curr = getInt( ii, argc, argv, "-numbers", aOK );
                     if ( aOK )
                         fNumbers.push_back( curr );
                     if ( (ii + 1) >= argc )
                         break;
                 }
+            }
+            else
+            {
+                std::cerr << "unknown switch: '" << argv[ ii ] << "'\n";
+                aOK = false;
             }
 
             if ( !aOK )
@@ -188,9 +204,16 @@ public:
     {
         report();
         fRunTime.first = std::chrono::system_clock::now();
-        createHandles();
-        while ( !isFinished() )
-            ;
+        partition();
+        auto prev = std::chrono::system_clock::now();
+        std::cout << "=============================================\n";
+        reportNumThreadsRemaining( prev, true );
+        while ( !isFinished( prev ) )
+        {
+            reportNumThreadsRemaining( prev );
+        }
+
+        reportNumThreadsRemaining( prev, true );
 
         fRunTime.second = std::chrono::system_clock::now();
         reportFindings();
@@ -248,33 +271,33 @@ private:
         std::cout << "\n";
     }
 
+    void report() const
+    {
+        if ( fNumbers.empty() )
+        {
+            std::cout << "Finding Narcissistic in the range: [" << fRange.first << ":" << fRange.second << "]." << std::endl;
+        }
+        else
+        {
+            std::cout << "Checking if the following numbers are Narcissistic:\n";
+            dumpNumbers( fNumbers );
+        }
+        std::cout << "Maximum Numbers per thread: " << fThreadMax << "\n";
+        std::cout << "Base : " << fBase << "\n";
+    }
+
     void reportFindings() const
     {
         std::cout << "=============================================\n";
         std::cout << "There are " << fNarcissisticNumbers.size() << " Narcissistic numbers";
         if ( fNumbers.empty() )
-            std::cout << " less than or equal to " << fMax << "." << std::endl;
+            std::cout << " in the range [" << fRange.first << ":" << fRange.second << "]." << std::endl;
         else
             std::cout << " in the requested list." << std::endl;
         fNarcissisticNumbers.sort();
         dumpNumbers( fNarcissisticNumbers );
         std::cout << "=============================================\n";
         std::cout << "Runtime: " << getTimeString( fRunTime, true, true ) << std::endl;
-    }
-
-    void report() const
-    {
-        if ( fNumbers.empty() )
-        {
-            std::cout << "Finding Narcissistic numbers up to: " << fMax << "\n";
-            std::cout << "Maximum Numbers per thread: " << fThreadMax << "\n";
-        }
-        std::cout << "Base : " << fBase << "\n";
-        if ( !fNumbers.empty() )
-        {
-            std::cout << "Checking if the following numbers are Narcissistic:\n";
-            dumpNumbers( fNumbers );
-        }
     }
 
     std::pair< bool, bool > checkAndAddValue( int64_t value )
@@ -290,6 +313,7 @@ private:
         }
         return std::make_pair( isNarcissistic, true );
     }
+
     void findNarcissisticRange( int num, int64_t min, int64_t max )
     {
         //std::cout << "\n" << num << ": Computing for (" << min << "," << max-1 << ")" << std::endl;
@@ -307,7 +331,7 @@ private:
         //std::cout << "\n" << num << ": ----> Computing for (" << min << "," << max-1 << ")" << " = " << numArm << std::endl;
     }
 
-    void findNarcissisticList( const std::list< int64_t > & values )
+    void findNarcissisticList( int num, const std::list< int64_t > & values )
     {
         int numArm = 0;
         for ( auto ii : values )
@@ -320,37 +344,70 @@ private:
             if ( isNarcissistic )
                 numArm++;
         }
-        //std::cout << "\n" << num << ": ----> Computing for (" << min << "," << max-1 << ")" << " = " << numArm << std::endl;
     }
 
-    void createHandles()
+    void partition()
     {
         //std::cout << "Creating Handles for for (" << min << "," << max - 1 << ")" << std::endl;
         if ( fNumbers.empty() )
         {
             int num = 0;
-            for ( auto ii = 0; ii < fMax; ii += fThreadMax )
+            for ( auto ii = fRange.first; ii < fRange.second; ii += fThreadMax )
             {
-                sHandles.push_back( std::async( std::launch::async, &CNarcissisticNumCalculator::findNarcissisticRange, this, num++, ii, ii + fThreadMax ) );
+                auto max = std::min( fRange.second, ii + fThreadMax );
+                fHandles.push_back( std::async( std::launch::async, &CNarcissisticNumCalculator::findNarcissisticRange, this, num++, ii, max ) );
             }
         }
         else
-            sHandles.push_back( std::async( std::launch::async, &CNarcissisticNumCalculator::findNarcissisticList, this, fNumbers ) );
-    }
-
-    bool isFinished()
-    {
-        while ( !sHandles.empty() )
         {
-            for ( auto ii = sHandles.begin(); ii != sHandles.end(); )
+            if ( fNumbers.size() <= fThreadMax )
+                fHandles.push_back( std::async( std::launch::async, &CNarcissisticNumCalculator::findNarcissisticList, this, 0, fNumbers ) );
+            else
             {
-                if ( (*ii).wait_for( std::chrono::seconds( 0 ) ) == std::future_status::ready ) // finished
-                    ii = sHandles.erase( ii );
-                else
-                    break; // still running
+                auto tmp = fNumbers;
+                int num = 0;
+                while ( !tmp.empty() )
+                {
+                    auto start = tmp.begin();
+                    auto end = tmp.end();
+                    if ( tmp.size() > fThreadMax )
+                    {
+                        end = tmp.begin();
+                        std::advance( end, fThreadMax );
+                    }
+                    auto curr = std::list< int64_t >( start, end );
+                    fHandles.push_back( std::async( std::launch::async, &CNarcissisticNumCalculator::findNarcissisticList, this, num++, curr ) );
+                    tmp.erase( start, end );
+                }
             }
         }
-        return sHandles.empty();
+        std::cout << "=============================================\n";
+        std::cout << "Number of Threads Created: " << fHandles.size() << "\n";
+    }
+
+    void reportNumThreadsRemaining( std::chrono::system_clock::time_point & prev, bool force=false )
+    {
+        auto now = std::chrono::system_clock::now();
+        auto duration = now - prev;
+        if ( force || ( std::chrono::duration_cast<std::chrono::seconds>(duration).count() > fReportSeconds) )
+        {
+            std::cout << "Number of Threads Remaining: " << fHandles.size() << "\n";
+            prev = now;
+        }
+    }
+
+    bool isFinished( std::chrono::system_clock::time_point & prev )
+    {
+        for ( auto ii = fHandles.begin(); ii != fHandles.end(); )
+        {
+            reportNumThreadsRemaining( prev );
+
+            if ( (*ii).wait_for( std::chrono::seconds( 0 ) ) == std::future_status::ready ) // finished
+                ii = fHandles.erase( ii );
+            else
+                break;
+        }
+        return fHandles.empty();
     }
 
     void addNarcissisticValue( int64_t value )
@@ -390,10 +447,11 @@ private:
     }
 
     int fBase{ 10 };
-    int fMax{ 100000 };
+    std::pair< int64_t, int64_t > fRange{ 0, 100000 };
     int fThreadMax{ 100 };
+    int fReportSeconds{ 5 };
     std::list< int64_t > fNumbers;
-    std::list< std::future< void > > sHandles;
+    std::list< std::future< void > > fHandles;
 
     std::mutex fMutex;
     mutable std::list< int64_t > fNarcissisticNumbers;
