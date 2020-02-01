@@ -6,6 +6,7 @@
 #include <mutex>
 #include <list>
 #include <cctype>
+#include <tuple>
 
 int fromChar( char ch, int base, bool & aOK )
 {
@@ -80,36 +81,6 @@ int64_t fromString( const std::string & str, int base )
         retVal = (retVal * base) + currVal;
     }
     return retVal;
-}
-
-bool isNarcissistic( int64_t val, int base, bool & aOK )
-{
-    auto str = toString( val, base );
-
-    int64_t sumOfPowers = 0;
-    int64_t value = 0;
-    bool isNeg = false;
-    for ( size_t ii = 0; ii < str.length(); ++ii )
-    {
-        auto currChar = str[ ii ];
-        if ( (ii == 0) && (currChar == '-') )
-        {
-            isNeg = true;
-            continue;
-        }
-
-        int64_t currVal = (isNeg ? -1 : 1) * fromChar(currChar, base, aOK );
-        if ( !aOK )
-        {
-            std::cerr << "Invalid character: " << currChar << std::endl;
-            return false;
-        }
-        sumOfPowers += static_cast<uint64_t>(std::pow( currVal, str.length() ));
-
-        value = (value * base) + currVal;
-    }
-
-    return value == sumOfPowers;
 }
 
 class CNarcissisticNumCalculator
@@ -224,7 +195,7 @@ private:
     {
         std::cout << "There are " << fNarcissisticNumbers.size() << " Narcissistic numbers";
         if ( fNumbers.empty() )
-            std::cout << " than or equal to " << fMax << "." << std::endl;
+            std::cout << " less than or equal to " << fMax << "." << std::endl;
         else
             std::cout << " in the requested list." << std::endl;
         fNarcissisticNumbers.sort();
@@ -246,41 +217,48 @@ private:
         }
     }
 
-    void findNarcissisticRange( int num, int base, int64_t min, int64_t max )
+    std::pair< bool, bool > checkAndAddValue( int64_t value )
+    {
+        bool aOK = true;
+        bool isNarcissistic = this->isNarcissistic( value, fBase, aOK );
+        if ( !aOK )
+            return std::make_pair( false, false );
+        if ( isNarcissistic )
+        {
+            //std::cout << curr << " is Narcissistic? " << (isNarcissistic ? "yes" : "no") << std::endl;
+            addNarcissisticValue( value );
+        }
+        return std::make_pair( true, isNarcissistic );
+    }
+    void findNarcissisticRange( int num, int64_t min, int64_t max )
     {
         //std::cout << "\n" << num << ": Computing for (" << min << "," << max-1 << ")" << std::endl;
         int numArm = 0;
         for ( auto ii = min; ii < max; ++ii )
         {
-            bool aOK = true;
-            bool isNarcissistic = ::isNarcissistic( ii, base, aOK );
+            bool isNarcissistic = false;
+            bool aOK = false;
+            std::tie( isNarcissistic, aOK ) = checkAndAddValue( ii );
             if ( !aOK )
                 return;
             if ( isNarcissistic )
-            {
-                //std::cout << curr << " is Narcissistic? " << (isNarcissistic ? "yes" : "no") << std::endl;
-                addNarcissisticValue( ii );
                 numArm++;
-            }
         }
         //std::cout << "\n" << num << ": ----> Computing for (" << min << "," << max-1 << ")" << " = " << numArm << std::endl;
     }
 
-    void findNarcissisticList( int base, const std::list< int64_t > & values )
+    void findNarcissisticList( const std::list< int64_t > & values )
     {
         int numArm = 0;
         for ( auto ii : values )
         {
-            bool aOK = true;
-            bool isNarcissistic = ::isNarcissistic( ii, base, aOK );
+            bool isNarcissistic = false;
+            bool aOK = false;
+            std::tie( isNarcissistic, aOK ) = checkAndAddValue( ii );
             if ( !aOK )
                 return;
             if ( isNarcissistic )
-            {
-                //std::cout << curr << " is Narcissistic? " << (isNarcissistic ? "yes" : "no") << std::endl;
-                addNarcissisticValue( ii );
                 numArm++;
-            }
         }
         //std::cout << "\n" << num << ": ----> Computing for (" << min << "," << max-1 << ")" << " = " << numArm << std::endl;
     }
@@ -293,11 +271,11 @@ private:
             int num = 0;
             for ( auto ii = 0; ii < fMax; ii += fThreadMax )
             {
-                sHandles.push_back( std::async( std::launch::async, &CNarcissisticNumCalculator::findNarcissisticRange, this, num++, fBase, ii, ii + fThreadMax ) );
+                sHandles.push_back( std::async( std::launch::async, &CNarcissisticNumCalculator::findNarcissisticRange, this, num++, ii, ii + fThreadMax ) );
             }
         }
         else
-            sHandles.push_back( std::async( std::launch::async, &CNarcissisticNumCalculator::findNarcissisticList, this, fBase, fNumbers ) );
+            sHandles.push_back( std::async( std::launch::async, &CNarcissisticNumCalculator::findNarcissisticList, this, fNumbers ) );
     }
 
     bool isFinished()
@@ -319,6 +297,36 @@ private:
     {
         std::lock_guard< std::mutex > lock( fMutex );
         fNarcissisticNumbers.push_back( value );
+    }
+
+    bool isNarcissistic( int64_t val, int base, bool & aOK )
+    {
+        auto str = toString( val, base );
+
+        int64_t sumOfPowers = 0;
+        int64_t value = 0;
+        bool isNeg = false;
+        for ( size_t ii = 0; ii < str.length(); ++ii )
+        {
+            auto currChar = str[ ii ];
+            if ( (ii == 0) && (currChar == '-') )
+            {
+                isNeg = true;
+                continue;
+            }
+
+            int64_t currVal = (isNeg ? -1 : 1) * fromChar( currChar, base, aOK );
+            if ( !aOK )
+            {
+                std::cerr << "Invalid character: " << currChar << std::endl;
+                return false;
+            }
+            sumOfPowers += static_cast<uint64_t>(std::pow( currVal, str.length() ));
+
+            value = (value * base) + currVal;
+        }
+
+        return value == sumOfPowers;
     }
 
     int fBase{ 10 };
