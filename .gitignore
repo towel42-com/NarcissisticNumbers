@@ -3,7 +3,7 @@
 ################################################################################
 
 /.vs
+/out
 /x64
 /Debug
 /Release
-/NarcissisticNumbers.vcxproj.user
