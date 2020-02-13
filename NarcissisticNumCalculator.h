@@ -1,16 +1,20 @@
 #ifndef __NARCISSISTICNUMCALCULATOR_H
 #define __NARCISSISTICNUMCALCULATOR_H
+
+#include "utils.h"
+
 #include <algorithm>
 #include <list>
 #include <chrono>
 #include <mutex>
 #include <future>
+#include <functional>
 
 class CNarcissisticNumCalculator
 {
 public:
     bool parse(int argc, char** argv);
-    void run();
+    std::chrono::system_clock::duration run( const std::function< int64_t(int64_t, int64_t) > & pwrFunction= [](int64_t x, int64_t y)->int64_t { return power(x, y); });
 private:
     static int getInt(int& ii, int argc, char** argv, const char* switchName, bool& aOK);
     void dumpNumbers(const std::list< int64_t >& numbers) const;
@@ -38,6 +42,7 @@ private:
     std::mutex fMutex;
     mutable std::list< int64_t > fNarcissisticNumbers;
 
+    std::function< int64_t(int64_t, int64_t) > fPowerFunction;
     std::pair< std::chrono::system_clock::time_point, std::chrono::system_clock::time_point > fRunTime;
 };
 #endif
