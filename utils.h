@@ -9,29 +9,6 @@
 template< typename T1, typename T2 >
 using TLargestType = typename std::conditional< (sizeof(T1) >= sizeof(T2)), T1, T2 >::type;
 
-template < typename T1, typename T2>
-// Integral types
-// the return type is the larger of the two T1 and T2 types
-auto power(T1 x, T2 y) 
-    -> typename std::enable_if< std::is_integral<T1>::value && std::is_integral<T2>::value, TLargestType< T1, T2 > >::type
-{
-    if (y == 0)
-        return 1;
-    if (y == 1)
-        return x;
-    if (x == 0)
-        return 0;
-    if (x == 1)
-        return 1;
-
-    auto retVal = power(x, y / 2) * power(x, y / 2);
-    if ((y / 2) != 0)
-    {
-        retVal *= x;
-    }
-    return retVal;
-}
-
 template < typename T1, typename T2 >
 // FLOATING POINT just use std::pow 
 // the return type is the larger of the two T1 and T2 types
@@ -44,7 +21,7 @@ auto power(T1 x, T2 y)
 template < typename T1, typename T2>
 // Integral types
 // the return type is the larger of the two T1 and T2 types
-auto power2(T1 x, T2 y)
+auto power(T1 x, T2 y)
 -> typename std::enable_if< std::is_integral<T1>::value && std::is_integral<T2>::value, TLargestType< T1, T2 > >::type
 {
     if (y == 0)

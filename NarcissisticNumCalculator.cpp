@@ -22,11 +22,11 @@ bool CNarcissisticNumCalculator::parse( int argc, char ** argv )
         }
         else if ( strncmp( argv[ ii ], "-min", 4 ) == 0 )
         {
-            fRange.first = getInt( ii, argc, argv, "-min", aOK );
+            fNumbers.first.first = getInt( ii, argc, argv, "-min", aOK );
         }
         else if ( strncmp( argv[ ii ], "-max", 4 ) == 0 )
         {
-            fRange.second = getInt( ii, argc, argv, "-max", aOK );
+            fNumbers.first.second = getInt( ii, argc, argv, "-max", aOK );
         }
         else if ( strncmp( argv[ ii ], "-thread_max", 11 ) == 0 )
         {
@@ -50,7 +50,7 @@ bool CNarcissisticNumCalculator::parse( int argc, char ** argv )
 
                 auto curr = getInt( ii, argc, argv, "-numbers", aOK );
                 if ( aOK )
-                    fNumbers.push_back( curr );
+                    fNumbers.second.push_back( curr );
                 if ( (ii + 1) >= argc )
                     break;
             }
@@ -68,22 +68,36 @@ bool CNarcissisticNumCalculator::parse( int argc, char ** argv )
     return true;
 }
 
+void CNarcissisticNumCalculator::launch()
+{
+    auto max = std::thread::hardware_concurrency();
+    for (unsigned int ii = 0; ii < max; ++ii)
+    {
+        fHandles.push_back(std::async(std::launch::async, &CNarcissisticNumCalculator::analyzeNextRange, this ));
+    }
+    std::unique_lock< std::mutex > lock(fMutex);
+    std::cout << "=============================================\n";
+    std::cout << "Number of Threads Created: " << fHandles.size() << "\n";
+}
+
 std::chrono::system_clock::duration CNarcissisticNumCalculator::run( const std::function< int64_t(int64_t, int64_t) > & pwrFunction)
 {
     fNarcissisticNumbers.clear();
+    fHandles.clear();
+    fFinished = false;
     report();
     fPowerFunction = pwrFunction;
     fRunTime.first = std::chrono::system_clock::now();
-    partition();
-    auto prev = std::chrono::system_clock::now();
+    launch();
     std::cout << "=============================================\n";
-    reportNumThreadsRemaining( prev, true );
+    partition();
+
+    auto prev = std::chrono::system_clock::now();
+    reportNumRangesRemaining( prev, true );
     while ( !isFinished( prev ) )
     {
-        reportNumThreadsRemaining( prev );
     }
-
-    reportNumThreadsRemaining( prev, true );
+    reportNumRangesRemaining( prev, true );
 
     fRunTime.second = std::chrono::system_clock::now();
     reportFindings();
@@ -142,33 +156,35 @@ void CNarcissisticNumCalculator::dumpNumbers( const std::list< int64_t > & numbe
     std::cout << "\n";
 }
 
-void CNarcissisticNumCalculator::report() const
+void CNarcissisticNumCalculator::report()
 {
-    if ( fNumbers.empty() )
+    if (fNumbers.second.empty() )
     {
-        std::cout << "Finding Narcissistic in the range: [" << fRange.first << ":" << fRange.second << "]." << std::endl;
+        std::cout << "Finding Narcissistic in the range: [" << fNumbers.first.first << ":" << fNumbers.first.second << "]." << std::endl;
     }
     else
     {
         std::cout << "Checking if the following numbers are Narcissistic:\n";
-        dumpNumbers( fNumbers );
+        dumpNumbers( fNumbers.second );
     }
     std::cout << "Maximum Numbers per thread: " << fThreadMax << "\n";
     std::cout << "Base : " << fBase << "\n";
+    std::cout << "HW Concurrency : " << std::thread::hardware_concurrency() << "\n";
 }
 
-void CNarcissisticNumCalculator::reportFindings() const
+void CNarcissisticNumCalculator::reportFindings()
 {
     std::cout << "=============================================\n";
     std::cout << "There are " << fNarcissisticNumbers.size() << " Narcissistic numbers";
-    if ( fNumbers.empty() )
-        std::cout << " in the range [" << fRange.first << ":" << fRange.second << "]." << std::endl;
+    if (fNumbers.second.empty() )
+        std::cout << " in the range [" << fNumbers.first.first << ":" << fNumbers.first.second << "]." << std::endl;
     else
         std::cout << " in the requested list." << std::endl;
     fNarcissisticNumbers.sort();
     dumpNumbers( fNarcissisticNumbers );
     std::cout << "=============================================\n";
     std::cout << "Runtime: " << getTimeString( fRunTime, true, true ) << std::endl;
+    std::cout << "=============================================\n";
 }
 
 std::pair< bool, bool > CNarcissisticNumCalculator::checkAndAddValue( int64_t value )
@@ -179,17 +195,60 @@ std::pair< bool, bool > CNarcissisticNumCalculator::checkAndAddValue( int64_t va
         return std::make_pair( false, false );
     if ( isNarcissistic )
     {
-        //std::cout << curr << " is Narcissistic? " << (isNarcissistic ? "yes" : "no") << std::endl;
         addNarcissisticValue( value );
     }
     return std::make_pair( isNarcissistic, true );
 }
 
-void CNarcissisticNumCalculator::findNarcissisticRange( int num, int64_t min, int64_t max )
+void CNarcissisticNumCalculator::analyzeNextRange()
 {
-    //std::cout << "\n" << num << ": Computing for (" << min << "," << max-1 << ")" << std::endl;
+    while( true ) // infinite loop 
+    {
+        TRangeSet currRange;
+        {
+            //std::cout << std::this_thread::get_id() << " - Trying next\n";
+            std::unique_lock< std::mutex > lock(fMutex);
+            //std::cout << "Locked: " << std::this_thread::get_id() << " - Analyze Next Range\n";
+
+            fConditionVariable.wait(lock, [this]() { return (fFinished || !fRanges.empty()); });
+            if (fRanges.empty())
+            {
+                //std::cout << std::this_thread::get_id() << " - Finished with all ranges\n";
+                //std::cout << "UnLocked - Analyze Next Range (finished)\n";
+                return;
+            }
+
+            currRange = std::move(fRanges.front());
+            fRanges.pop_front();
+            //std::cout << "UnLocked: Analyze Next Range (still going)\n";
+        }
+        findNarcissistic(currRange);
+    }
+}
+
+void CNarcissisticNumCalculator::findNarcissistic(const TRangeSet& range)
+{
+    if (std::get< 0 >(range))
+        findNarcissisticRange(std::get< 2 >(range));
+    else
+        findNarcissisticList(std::get< 1 >(range));
+}
+
+void CNarcissisticNumCalculator::findNarcissisticRange(int64_t min, int64_t max)
+{
+    return findNarcissisticRange( std::make_pair(min, max));
+}
+
+void CNarcissisticNumCalculator::findNarcissisticRange( const std::pair< int64_t, int64_t > & range )
+{
+    {
+        //std::unique_lock< std::mutex > lock(fMutex);
+        //std::cout << "Locked: FindNarcissisticRange - Header\n";
+        //std::cout << "\n" << std::this_thread::get_id() << ": Computing for (" << range.first << "," << range.second - 1 << ")" << std::endl;
+        //std::cout << "UnLocked: FindNarcissisticRange - Header\n";
+    }
     int numArm = 0;
-    for ( auto ii = min; ii < max; ++ii )
+    for ( auto ii = range.first; ii < range.second; ++ii )
     {
         bool isNarcissistic = false;
         bool aOK = false;
@@ -199,10 +258,15 @@ void CNarcissisticNumCalculator::findNarcissisticRange( int num, int64_t min, in
         if ( isNarcissistic )
             numArm++;
     }
-    //std::cout << "\n" << num << ": ----> Computing for (" << min << "," << max-1 << ")" << " = " << numArm << std::endl;
+    {
+        //std::unique_lock< std::mutex > lock(fMutex);
+        //std::cout << "Locked: FindNarcissisticRange - Footer\n";
+        //std::cout << "\n" << std::this_thread::get_id() << ": ----> Computing for (" << range.first << "," << range.second - 1 << ")" << " = " << numArm << std::endl;
+        //std::cout << "UnLocked: FindNarcissisticRange - Footer\n";
+    }
 }
 
-void CNarcissisticNumCalculator::findNarcissisticList( int num, const std::list< int64_t > & values )
+void CNarcissisticNumCalculator::findNarcissisticList( const std::list< int64_t > & values )
 {
     int numArm = 0;
     for ( auto ii : values )
@@ -219,23 +283,26 @@ void CNarcissisticNumCalculator::findNarcissisticList( int num, const std::list<
 
 void CNarcissisticNumCalculator::partition()
 {
-    //std::cout << "Creating Handles for for (" << min << "," << max - 1 << ")" << std::endl;
-    if ( fNumbers.empty() )
+    if (fNumbers.second.empty() )
     {
         int num = 0;
-        for ( auto ii = fRange.first; ii < fRange.second; ii += fThreadMax )
+        for ( auto ii = fNumbers.first.first; ii < fNumbers.first.second; ii += fThreadMax )
         {
-            auto max = std::min( fRange.second, ii + fThreadMax );
-            fHandles.push_back( std::async( std::launch::async, &CNarcissisticNumCalculator::findNarcissisticRange, this, num++, ii, max ) );
+            auto max = std::min(fNumbers.first.second, ii + fThreadMax );
+            addRange(std::make_pair(ii, max));
+            //fHandles.push_back( std::async( std::launch::async, &CNarcissisticNumCalculator::findNarcissisticRange, this, num++, ii, max ) );
         }
     }
     else
     {
-        if ( fNumbers.size() <= fThreadMax )
-            fHandles.push_back( std::async( std::launch::async, &CNarcissisticNumCalculator::findNarcissisticList, this, 0, fNumbers ) );
+        if (fNumbers.second.size() <= fThreadMax)
+        {
+            addRange(fNumbers.second);
+         //   fHandles.push_back(std::async(std::launch::async, &CNarcissisticNumCalculator::findNarcissisticList, this, 0, fNumbers.second));
+        }
         else
         {
-            auto tmp = fNumbers;
+            auto tmp = fNumbers.second;
             int num = 0;
             while ( !tmp.empty() )
             {
@@ -246,35 +313,47 @@ void CNarcissisticNumCalculator::partition()
                     end = tmp.begin();
                     std::advance( end, fThreadMax );
                 }
-                auto curr = std::list< int64_t >( start, end );
-                fHandles.push_back( std::async( std::launch::async, &CNarcissisticNumCalculator::findNarcissisticList, this, num++, curr ) );
+                //auto curr = std::list< int64_t >( start, end );
+                addRange(std::list< int64_t >(start, end));
+                // fHandles.push_back( std::async( std::launch::async, &CNarcissisticNumCalculator::findNarcissisticList, this, num++, curr ) );
                 tmp.erase( start, end );
             }
         }
     }
-    std::cout << "=============================================\n";
-    std::cout << "Number of Threads Created: " << fHandles.size() << "\n";
+    {
+        std::unique_lock< std::mutex > lock(fMutex);
+        std::cout << "Number of Ranges Created: " << fRanges.size() << "\n";
+        std::cout << "=============================================\n";
+    }
+    fFinished = true;
+    fConditionVariable.notify_all();
 }
 
-void CNarcissisticNumCalculator::reportNumThreadsRemaining( std::chrono::system_clock::time_point & prev, bool force )
+void CNarcissisticNumCalculator::reportNumRangesRemaining( std::chrono::system_clock::time_point & prev, bool force )
 {
     auto now = std::chrono::system_clock::now();
     auto duration = now - prev;
     if ( force || ( std::chrono::duration_cast<std::chrono::seconds>(duration).count() > fReportSeconds) )
     {
-        std::cout << "Number of Threads Remaining: " << fHandles.size() << "\n";
+        {
+            std::unique_lock< std::mutex > lock(fMutex);
+            //std::cout << "Locked: reportNumRangesRemaining\n";
+            std::cout << "Number of Ranges Remaining: " << fRanges.size() << "\n";
+            std::cout << "Number of Threads Remaining: " << fHandles.size() << "\n";
+            //std::cout << "UnLocked: reportNumRangesRemaining\n";
+        }
         prev = now;
     }
 }
 
 bool CNarcissisticNumCalculator::isFinished( std::chrono::system_clock::time_point & prev )
 {
-    for ( auto ii = fHandles.begin(); ii != fHandles.end(); )
+    for (auto ii = fHandles.begin(); ii != fHandles.end(); )
     {
-        reportNumThreadsRemaining( prev );
+        reportNumRangesRemaining(prev);
 
-        if ( (*ii).wait_for( std::chrono::seconds( 0 ) ) == std::future_status::ready ) // finished
-            ii = fHandles.erase( ii );
+        if ((*ii).wait_for(std::chrono::seconds(0)) == std::future_status::ready) // finished
+            ii = fHandles.erase(ii);
         else
             break;
     }
@@ -312,5 +391,21 @@ bool CNarcissisticNumCalculator::isNarcissistic( int64_t val, int base, bool & a
     }
 
     return value == sumOfPowers;
+}
+
+void CNarcissisticNumCalculator::addRange(const std::pair< int64_t, int64_t >& range)
+{
+    auto&& tmp = std::make_tuple(true, std::list< int64_t >(), range);
+    std::unique_lock< std::mutex > lock(fMutex);
+    fRanges.push_back(tmp);
+    //fConditionVariable.notify_one();
+}
+
+void CNarcissisticNumCalculator::addRange(const std::list< int64_t >& list)
+{
+    auto&& tmp = std::make_tuple(false, list, std::make_pair< int64_t, int64_t >(0, 0));
+    std::unique_lock< std::mutex > lock(fMutex);
+    fRanges.push_back(tmp);
+    //fConditionVariable.notify_one();
 }
 
