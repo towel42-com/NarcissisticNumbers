@@ -14,8 +14,11 @@
 class CNarcissisticNumCalculator
 {
 public:
+    CNarcissisticNumCalculator();
     bool parse( int argc, char** argv );
     std::chrono::system_clock::duration run( const std::function< int64_t( int64_t, int64_t ) >& pwrFunction = []( int64_t x, int64_t y )->int64_t { return NUtils::power( x, y ); } );
+
+    void setNumThreads( int ii ){ fNumThreads = ii; }
 private:
     static int getInt( int& ii, int argc, char** argv, const char* switchName, bool& aOK );
     void dumpNumbers( const std::list< int64_t >& numbers ) const;
@@ -44,7 +47,7 @@ private:
 
     int fBase{ 10 };
     std::pair< std::pair< int64_t, int64_t >, std::list< int64_t > > fNumbers = std::make_pair< std::pair< int64_t, int64_t >, std::list< int64_t > >( { 0, 100000 }, std::list< int64_t >() );
-    int fThreadMax{ 100 };
+    int fNumPerRange{ 100 };
     int fReportSeconds{ 5 };
 
 
@@ -59,5 +62,6 @@ private:
 
     std::function< int64_t( int64_t, int64_t ) > fPowerFunction;
     std::pair< std::chrono::system_clock::time_point, std::chrono::system_clock::time_point > fRunTime;
+    uint32_t fNumThreads;
 };
 #endif

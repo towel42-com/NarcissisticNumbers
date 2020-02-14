@@ -6,6 +6,11 @@
 #include <string>
 
 
+CNarcissisticNumCalculator::CNarcissisticNumCalculator()
+{
+    fNumThreads = std::thread::hardware_concurrency();
+}
+
 bool CNarcissisticNumCalculator::parse( int argc, char** argv )
 {
     for ( int ii = 1; ii < argc; ++ii )
@@ -28,9 +33,13 @@ bool CNarcissisticNumCalculator::parse( int argc, char** argv )
         {
             fNumbers.first.second = getInt( ii, argc, argv, "-max", aOK );
         }
-        else if ( strncmp( argv[ ii ], "-thread_max", 11 ) == 0 )
+        else if ( strncmp( argv[ ii ], "-num_threads", 12 ) == 0 )
         {
-            fThreadMax = getInt( ii, argc, argv, "-max", aOK );
+            fNumThreads = getInt( ii, argc, argv, "-num_threads", aOK );
+        }
+        else if ( strncmp( argv[ ii ], "-range_max", 11 ) == 0 )
+        {
+            fNumPerRange = getInt( ii, argc, argv, "-range_max", aOK );
         }
         else if ( strncmp( argv[ ii ], "-report_seconds", 15 ) == 0 )
         {
@@ -70,8 +79,7 @@ bool CNarcissisticNumCalculator::parse( int argc, char** argv )
 
 void CNarcissisticNumCalculator::launch()
 {
-    auto max = std::thread::hardware_concurrency();
-    for ( unsigned int ii = 0; ii < max; ++ii )
+    for ( unsigned int ii = 0; ii < fNumThreads; ++ii )
     {
         fHandles.push_back( std::async( std::launch::async, &CNarcissisticNumCalculator::analyzeNextRange, this ) );
     }
@@ -167,7 +175,7 @@ void CNarcissisticNumCalculator::report()
         std::cout << "Checking if the following numbers are Narcissistic:\n";
         dumpNumbers( fNumbers.second );
     }
-    std::cout << "Maximum Numbers per thread: " << fThreadMax << "\n";
+    std::cout << "Maximum Numbers per thread: " << fNumPerRange << "\n";
     std::cout << "Base : " << fBase << "\n";
     std::cout << "HW Concurrency : " << std::thread::hardware_concurrency() << "\n";
 }
@@ -286,16 +294,16 @@ void CNarcissisticNumCalculator::partition()
     if ( fNumbers.second.empty() )
     {
         int num = 0;
-        for ( auto ii = fNumbers.first.first; ii < fNumbers.first.second; ii += fThreadMax )
+        for ( auto ii = fNumbers.first.first; ii < fNumbers.first.second; ii += fNumPerRange )
         {
-            auto max = std::min( fNumbers.first.second, ii + fThreadMax );
+            auto max = std::min( fNumbers.first.second, ii + fNumPerRange );
             addRange( std::make_pair( ii, max ) );
             //fHandles.push_back( std::async( std::launch::async, &CNarcissisticNumCalculator::findNarcissisticRange, this, num++, ii, max ) );
         }
     }
     else
     {
-        if ( fNumbers.second.size() <= fThreadMax )
+        if ( fNumbers.second.size() <= fNumPerRange )
         {
             addRange( fNumbers.second );
             //   fHandles.push_back(std::async(std::launch::async, &CNarcissisticNumCalculator::findNarcissisticList, this, 0, fNumbers.second));
@@ -308,10 +316,10 @@ void CNarcissisticNumCalculator::partition()
             {
                 auto start = tmp.begin();
                 auto end = tmp.end();
-                if ( tmp.size() > fThreadMax )
+                if ( tmp.size() > fNumPerRange )
                 {
                     end = tmp.begin();
-                    std::advance( end, fThreadMax );
+                    std::advance( end, fNumPerRange );
                 }
                 //auto curr = std::list< int64_t >( start, end );
                 addRange( std::list< int64_t >( start, end ) );
@@ -398,7 +406,6 @@ void CNarcissisticNumCalculator::addRange( const std::pair< int64_t, int64_t >& 
     auto&& tmp = std::make_tuple( true, std::list< int64_t >(), range );
     std::unique_lock< std::mutex > lock( fMutex );
     fRanges.push_back( tmp );
-    //fConditionVariable.notify_one();
 }
 
 void CNarcissisticNumCalculator::addRange( const std::list< int64_t >& list )
@@ -406,6 +413,5 @@ void CNarcissisticNumCalculator::addRange( const std::list< int64_t >& list )
     auto&& tmp = std::make_tuple( false, list, std::make_pair< int64_t, int64_t >( 0, 0 ) );
     std::unique_lock< std::mutex > lock( fMutex );
     fRanges.push_back( tmp );
-    //fConditionVariable.notify_one();
 }
 

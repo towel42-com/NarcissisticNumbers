@@ -4,6 +4,26 @@
 #include <unordered_map>
 #include <iostream>
 
+using TRunTime = std::tuple< std::function< int64_t( int64_t, int64_t ) >, std::chrono::system_clock::duration, int, std::string >;
+
+void report( const std::string& prefix, const TRunTime& curr )
+{
+    if ( !prefix.empty() )
+        std::cout << prefix << ": ";
+
+    std::cout << std::get< 3 >( curr ) << " - NumThreads : " << std::get< 2 >( curr ) << " - " << NUtils::getTimeString( std::get< 1 >( curr ), true, true ) << std::endl;
+}
+
+void reportMinMax( const std::vector<TRunTime>& runTimes, size_t max )
+{
+    auto minMax = std::minmax_element( runTimes.begin(), runTimes.begin() + max, []( const TRunTime& lhs, const TRunTime& rhs ) { return std::get< 1 >( lhs ) < std::get< 1 >( rhs ); } );
+
+    std::cout << "=============================================\n";
+    report( "Fastest", ( *minMax.first ) );
+    report( "Slowest", ( *minMax.second ) );
+    std::cout << "=============================================\n";
+}
+
 int main( int argc, char** argv )
 {
     CNarcissisticNumCalculator values;
@@ -11,26 +31,30 @@ int main( int argc, char** argv )
         return 1;
 
 
-    using TRunTime = std::tuple< std::function< int64_t( int64_t, int64_t ) >, std::chrono::system_clock::duration, std::string >;
-
     std::vector< TRunTime > runTimes;
-    runTimes.push_back( std::make_tuple( []( int64_t x, int64_t y )->int64_t { return NUtils::power( x, y ); }, std::chrono::system_clock::duration(), "Loop" ) );
-    runTimes.push_back( std::make_tuple( []( int64_t x, int64_t y )->int64_t { return static_cast<int64_t>( std::pow( x, y ) ); }, std::chrono::system_clock::duration(), "std::pow" ) );
-
-    for ( auto&& curr : runTimes )
+    for( int ii = 6; ii <= 500; ++ii )
     {
-        std::get< 1 >( curr ) = values.run( std::get< 0 >( curr ) );
+        runTimes.push_back( std::make_tuple( []( int64_t x, int64_t y )->int64_t { return NUtils::power( x, y ); }, std::chrono::system_clock::duration(), ii, "Loop" ) );
     }
 
-    auto minMax = std::minmax_element( runTimes.begin(), runTimes.end(), []( const TRunTime& lhs, const TRunTime& rhs ) { return std::get< 1 >( lhs ) < std::get< 1 >( rhs ); } );
+    try
+    {
+        for ( size_t ii = 0; ii < runTimes.size(); ++ii )
+        {
+            auto && curr = runTimes[ ii ];
+            values.setNumThreads( std::get< 2 >( curr ) );
+            std::get< 1 >( curr ) = values.run( std::get< 0 >( curr ) );
 
-    std::cout << "=============================================\n";
-    std::cout << "Fastest: " << std::get< 2 >( *( minMax.first ) ) << " - " << NUtils::getTimeString( std::get< 1 >( *( minMax.first ) ), true, true ) << std::endl;
-    std::cout << "Slowest: " << std::get< 2 >( *( minMax.second ) ) << " - " << NUtils::getTimeString( std::get< 1 >( *( minMax.second ) ), true, true ) << std::endl;
-    std::cout << "=============================================\n";
+            reportMinMax( runTimes, ii );
+        }
+    }
+    catch ( ... )
+    {
+    }
+
     for ( auto&& curr : runTimes )
     {
-        std::cout << "Fastest: " << std::get< 2 >( curr ) << " - " << NUtils::getTimeString( std::get< 1 >( curr ), true, true ) << std::endl;
+        report( "", curr );
     }
 
     return 0;
