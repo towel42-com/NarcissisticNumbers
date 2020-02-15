@@ -1,4 +1,10 @@
+cmake_minimum_required(VERSION 3.0)
 project(NarcissisticNumbers)
+
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED true)
+find_package(Threads)
+
 add_executable(NarcissisticNumbers 
 	main.cpp 
 	utils.cpp
@@ -6,5 +12,5 @@ add_executable(NarcissisticNumbers
 	NarcissisticNumCalculator.cpp
 	NarcissisticNumCalculator.h
 	)
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED true)
+
+target_link_libraries(NarcissisticNumbers ${CMAKE_THREAD_LIBS_INIT})

@@ -3,6 +3,7 @@
 
 #include <unordered_map>
 #include <iostream>
+#include <vector>
 
 using TRunTime = std::tuple< std::function< int64_t( int64_t, int64_t ) >, std::chrono::system_clock::duration, int, std::string >;
 
