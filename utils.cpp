@@ -80,11 +80,17 @@ namespace NUtils
         return getTimeString( duration, reportTotalSeconds, highPrecision );
     }
 
-    std::string getTimeString( const std::chrono::system_clock::duration& duration, bool reportTotalSeconds, bool highPrecision )
+    double getSeconds( const std::chrono::system_clock::duration& duration, bool highPrecision )
     {
         double totalSeconds = 1.0 * std::chrono::duration_cast<std::chrono::seconds>( duration ).count();
         if ( highPrecision )
             totalSeconds = std::chrono::duration_cast<std::chrono::duration< double, std::micro >>( duration ).count() / 1000000.0;
+        return totalSeconds;
+    }
+
+    std::string getTimeString( const std::chrono::system_clock::duration& duration, bool reportTotalSeconds, bool highPrecision )
+    {
+        auto totalSeconds = getSeconds( duration, highPrecision );
         auto hrs = std::chrono::duration_cast<std::chrono::hours>( duration ).count();
         auto mins = std::chrono::duration_cast<std::chrono::minutes>( duration ).count() - ( hrs * 60 );
         double secs = 1.0 * std::chrono::duration_cast<std::chrono::seconds>( duration ).count();

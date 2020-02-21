@@ -49,6 +49,7 @@ std::string toString( int64_t val, int base );
 int64_t fromString( const std::string& str, int base );
 std::string getTimeString( const std::pair< std::chrono::system_clock::time_point, std::chrono::system_clock::time_point >& startEndTime, bool reportTotalSeconds, bool highPrecision );
 std::string getTimeString( const std::chrono::system_clock::duration& duration, bool reportTotalSeconds, bool highPrecision );
+double getSeconds( const std::chrono::system_clock::duration& duration, bool highPrecision );
 
 }
 

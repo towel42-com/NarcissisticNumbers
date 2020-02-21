@@ -11,14 +11,22 @@
 #include <functional>
 #include <condition_variable>
 
+#ifdef _DEBUG
+static uint32_t kDefaultMaxNum{ 100000 };
+#else
+static uint32_t kDefaultMaxNum{ 50000000 };
+#endif
+
 class CNarcissisticNumCalculator
 {
 public:
     CNarcissisticNumCalculator();
     bool parse( int argc, char** argv );
-    std::chrono::system_clock::duration run( const std::function< int64_t( int64_t, int64_t ) >& pwrFunction = []( int64_t x, int64_t y )->int64_t { return NUtils::power( x, y ); } );
+    std::chrono::system_clock::duration run( const std::function< int64_t( int64_t, int64_t ) >& pwrFunction );
+    std::chrono::system_clock::duration run();
 
     void setNumThreads( int ii ){ fNumThreads = ii; }
+    void setNumPerRange( int ii ) { fNumPerRange = ii; }
 private:
     static int getInt( int& ii, int argc, char** argv, const char* switchName, bool& aOK );
     void dumpNumbers( const std::list< int64_t >& numbers ) const;
@@ -45,23 +53,27 @@ private:
     void addRange( const std::list< int64_t >& list );
     void analyzeNextRange();
 
+    // setup
     int fBase{ 10 };
-    std::pair< std::pair< int64_t, int64_t >, std::list< int64_t > > fNumbers = std::make_pair< std::pair< int64_t, int64_t >, std::list< int64_t > >( { 0, 100000 }, std::list< int64_t >() );
+    std::pair< std::pair< int64_t, int64_t >, std::list< int64_t > > fNumbers = std::make_pair< std::pair< int64_t, int64_t >, std::list< int64_t > >( { 0, kDefaultMaxNum }, std::list< int64_t >() );
     int fNumPerRange{ 100 };
     int fReportSeconds{ 5 };
+    uint32_t fNumThreads;
+    std::function< int64_t( int64_t, int64_t ) > fPowerFunction = []( int64_t x, int64_t y )->int64_t { return NUtils::power( x, y ); };
 
 
-    std::list< std::future< void > > fHandles;
-    std::condition_variable fConditionVariable;
+    // results
+    std::list< int64_t > fNarcissisticNumbers;
+    std::pair< std::chrono::system_clock::time_point, std::chrono::system_clock::time_point > fRunTime;
+
+    // used to do the thread pool
     std::mutex fMutex;
+    std::condition_variable fConditionVariable;
+    std::list< std::future< void > > fHandles;
 
-    mutable std::list< int64_t > fNarcissisticNumbers;
-
+    // computational values
     std::list< TRangeSet > fRanges;
     bool fFinished{ false };
 
-    std::function< int64_t( int64_t, int64_t ) > fPowerFunction;
-    std::pair< std::chrono::system_clock::time_point, std::chrono::system_clock::time_point > fRunTime;
-    uint32_t fNumThreads;
 };
 #endif

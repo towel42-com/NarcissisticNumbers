@@ -88,13 +88,19 @@ void CNarcissisticNumCalculator::launch()
     std::cout << "Number of Threads Created: " << fHandles.size() << "\n";
 }
 
+std::chrono::system_clock::duration CNarcissisticNumCalculator::run()
+{
+    return run( std::function< int64_t( int64_t, int64_t ) >() );
+}
+
 std::chrono::system_clock::duration CNarcissisticNumCalculator::run( const std::function< int64_t( int64_t, int64_t ) >& pwrFunction )
 {
     fNarcissisticNumbers.clear();
     fHandles.clear();
     fFinished = false;
     report();
-    fPowerFunction = pwrFunction;
+    if ( pwrFunction )
+        fPowerFunction = pwrFunction;
     fRunTime.first = std::chrono::system_clock::now();
     launch();
     std::cout << "=============================================\n";
@@ -390,10 +396,7 @@ bool CNarcissisticNumCalculator::isNarcissistic( int64_t val, int base, bool& aO
             std::cerr << "Invalid character: " << currChar << std::endl;
             return false;
         }
-        if ( fPowerFunction )
-            sumOfPowers += fPowerFunction( currVal, str.length() );
-        else
-            sumOfPowers += NUtils::power( currVal, str.length() );
+        sumOfPowers += fPowerFunction( currVal, str.length() );
 
         value = ( value * base ) + currVal;
     }
