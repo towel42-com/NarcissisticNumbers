@@ -1,4 +1,3 @@
-#include "NarcissisticNumCalculator.h"
 #include "utils.h"
 #include <iostream>
 #include <sstream>
