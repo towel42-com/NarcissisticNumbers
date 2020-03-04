@@ -27,6 +27,9 @@
 #include <string>
 #include <chrono>
 #include <cmath>
+#include <list>
+#include <utility>
+#include <vector>
 
 namespace NUtils
 {
@@ -73,9 +76,14 @@ std::string getTimeString( const std::pair< std::chrono::system_clock::time_poin
 std::string getTimeString( const std::chrono::system_clock::duration& duration, bool reportTotalSeconds, bool highPrecision );
 double getSeconds( const std::chrono::system_clock::duration& duration, bool highPrecision );
 
-
 bool isNarcissistic( int64_t val, int base, bool& aOK );
-
+std::list< int64_t > computeFactors( int64_t num );
+std::list< int64_t > computePrimeFactors( int64_t num );
+bool isSemiPerfect( const std::vector< int64_t >& numbers, size_t n, int64_t num );
+std::pair< bool, std::list< int64_t > > isSemiPerfect( int64_t num );
+std::pair< int64_t, std::list< int64_t > > getSumOfFactors( int64_t curr, bool properFactors );
+std::pair< bool, std::list< int64_t > > isPerfect( int64_t num );
+std::pair< bool, std::list< int64_t > > isAbundant( int64_t num );
 }
 
 #endif

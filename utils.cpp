@@ -23,6 +23,7 @@
 #include "utils.h"
 #include <iostream>
 #include <sstream>
+#include <algorithm>
 
 namespace NUtils
 {
@@ -178,4 +179,101 @@ namespace NUtils
 
         return value == sumOfPowers;
     }
+
+    std::list< int64_t > computeFactors( int64_t num )
+    {
+        std::list< int64_t > retVal;
+        std::list< int64_t > retVal2;
+        retVal.push_back( 1 );
+        retVal2.push_back( num );
+
+        // only need to go to half way point
+        auto lastNum = ( num / 2 ) + ( ( ( num % 2 ) == 0 ) ? 0 : 1 );
+        for ( int64_t ii = 2; ii < lastNum; ++ii )
+        {
+            if ( ( num % ii ) == 0 )
+            {
+                retVal.push_back( ii );
+                auto other = num / ii;
+                lastNum = std::min( lastNum, other );
+                retVal2.push_front( other );
+            }
+        }
+
+        if ( *retVal.rbegin() == *retVal2.begin() )
+            retVal2.pop_front();
+        retVal.insert( retVal.end(), retVal2.begin(), retVal2.end() );
+        retVal.sort();
+        return retVal;
+    }
+
+    std::list< int64_t > computePrimeFactors( int64_t num )
+    {
+        std::list< int64_t > retVal;
+
+        while ( ( num % 2 ) == 0 )
+        {
+            retVal.push_back( 2 );
+            num = num / 2;
+        }
+
+        int64_t lastNum = static_cast< int64_t >( std::floor( std::sqrt( num ) ) );
+
+        for ( int64_t ii = 3; ii < lastNum; ii = ii + 2 )
+        {
+            while ( ( num % ii ) == 0 )
+            {
+                retVal.push_back( ii );
+                num = num / ii;
+            }
+        }
+        if ( num > 2 )
+            retVal.push_back( num );
+        return retVal;
+    }
+    
+    std::pair< int64_t, std::list< int64_t > > getSumOfFactors( int64_t curr, bool properFactors )
+    {
+        auto factors = computeFactors( curr );
+        if ( properFactors && !factors.empty() )
+            factors.pop_back();
+        int64_t sum = 0;
+        for ( auto ii : factors )
+            sum += ii;
+        return std::make_pair( sum, factors );
+    }
+
+    std::pair< bool, std::list< int64_t > > isPerfect( int64_t num )
+    {
+        auto sum = getSumOfFactors( num, true );
+        return std::make_pair( sum.first == num, sum.second );
+    }
+
+    bool isSemiPerfect( const std::vector< int64_t >& factors, size_t n, int64_t num )
+    {
+        if ( num == 0 )
+            return true;
+        if ( n == 0 && num != 0 )
+            return false;
+
+        if ( factors[ n - 1 ] > num )
+            return isSemiPerfect( factors, n - 1, num );
+        return isSemiPerfect( factors, n - 1, num )
+            || isSemiPerfect( factors, n - 1, num - factors[ n - 1 ] );
+    }
+
+    std::pair< bool, std::list< int64_t > > isSemiPerfect( int64_t num )
+    {
+        auto sum = getSumOfFactors( num, true );
+        auto factors = std::vector< int64_t >( { sum.second.begin(), sum.second.end() } );
+        auto isSemiPerfect = NUtils::isSemiPerfect( factors, factors.size(), num );
+        return std::make_pair( isSemiPerfect, sum.second );
+    }
+
+    std::pair< bool, std::list< int64_t > > isAbundant( int64_t num )
+    {
+        auto sum = getSumOfFactors( num, true );
+        return std::make_pair( sum.first > num, sum.second );
+    }
+
 }
