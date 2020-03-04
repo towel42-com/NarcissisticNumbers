@@ -204,7 +204,7 @@ void CNarcissisticNumCalculator::reportFindings()
 std::pair< bool, bool > CNarcissisticNumCalculator::checkAndAddValue( int64_t value )
 {
     bool aOK = true;
-    bool isNarcissistic = this->isNarcissistic( value, fBase, aOK );
+    bool isNarcissistic = NUtils::isNarcissistic( value, fBase, aOK );
     if ( !aOK )
         return std::make_pair( false, false );
     if ( isNarcissistic )
@@ -378,30 +378,6 @@ void CNarcissisticNumCalculator::addNarcissisticValue( int64_t value )
 {
     std::lock_guard< std::mutex > lock( fMutex );
     fNarcissisticNumbers.push_back( value );
-}
-
-bool CNarcissisticNumCalculator::isNarcissistic( int64_t val, int base, bool& aOK )
-{
-    auto str = NUtils::toString( val, base );
-
-    int64_t sumOfPowers = 0;
-    int64_t value = 0;
-    for ( size_t ii = 0; ii < str.length(); ++ii )
-    {
-        auto currChar = str[ ii ];
-
-        int64_t currVal = NUtils::fromChar( currChar, base, aOK );
-        if ( !aOK )
-        {
-            std::cerr << "Invalid character: " << currChar << std::endl;
-            return false;
-        }
-        sumOfPowers += fPowerFunction( currVal, str.length() );
-
-        value = ( value * base ) + currVal;
-    }
-
-    return value == sumOfPowers;
 }
 
 void CNarcissisticNumCalculator::addRange( const std::pair< int64_t, int64_t >& range )

@@ -47,8 +47,6 @@ private:
     bool isFinished( std::chrono::system_clock::time_point& prev );
     void addNarcissisticValue( int64_t value );
 
-    bool isNarcissistic( int64_t val, int base, bool& aOK );
-
     void addRange( const std::pair< int64_t, int64_t >& range );
     void addRange( const std::list< int64_t >& list );
     void analyzeNextRange();

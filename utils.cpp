@@ -1,10 +1,31 @@
+// The MIT License( MIT )
+//
+// Copyright( c ) 2020 Scott Aron Bloom
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this softwareand associated documentation files( the "Software" ), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and /or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions :
+//
+// The above copyright noticeand this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 #include "utils.h"
 #include <iostream>
 #include <sstream>
 
 namespace NUtils
 {
-
     int fromChar( char ch, int base, bool& aOK )
     {
         if ( ch == '-' )
@@ -132,5 +153,29 @@ namespace NUtils
             oss << ")";
         }
         return oss.str();
+    }
+
+    bool isNarcissistic( int64_t val, int base, bool& aOK )
+    {
+        auto str = NUtils::toString( val, base );
+
+        int64_t sumOfPowers = 0;
+        int64_t value = 0;
+        for ( size_t ii = 0; ii < str.length(); ++ii )
+        {
+            auto currChar = str[ ii ];
+
+            int64_t currVal = NUtils::fromChar( currChar, base, aOK );
+            if ( !aOK )
+            {
+                std::cerr << "Invalid character: " << currChar << std::endl;
+                return false;
+            }
+            sumOfPowers += NUtils::power( currVal, str.length() );
+
+            value = ( value * base ) + currVal;
+        }
+
+        return value == sumOfPowers;
     }
 }
