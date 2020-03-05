@@ -21,6 +21,7 @@
 // SOFTWARE.
 
 
+#include "NarcissisticNumbers.h"
 #include "NarcissisticNumCalculator.h"
 #include "utils.h"
 
@@ -91,44 +92,46 @@ void reportTimes( const std::vector<TRunTime>& runTimes )
 
 int main( int argc, char** argv )
 {
-    CNarcissisticNumCalculator values;
-    if ( !values.parse( argc, argv ) )
-        return 1;
+    //CNarcissisticNumCalculator values;
+    //if ( !values.parse( argc, argv ) )
+    //    return 1;
 
 
-    TPowerFunc powerFunc = []( int64_t x, int64_t y )->int64_t { return NUtils::power( x, y ); };
-    auto zeroDuration = std::chrono::system_clock::duration();
-    std::vector< TRunTime > runTimes;
-    int numCores = std::thread::hardware_concurrency();
-    for( int ii = numCores; ii <= 50; ii += numCores )
-    {
-        for( int jj = 100; jj < 1000; jj += 100 )
-            runTimes.push_back( std::make_tuple( powerFunc, zeroDuration, ii, "Loop", jj ) );
-    }
+    //TPowerFunc powerFunc = []( int64_t x, int64_t y )->int64_t { return NUtils::power( x, y ); };
+    //auto zeroDuration = std::chrono::system_clock::duration();
+    //std::vector< TRunTime > runTimes;
+    //int numCores = std::thread::hardware_concurrency();
+    //for( int ii = numCores; ii <= 50; ii += numCores )
+    //{
+    //    for( int jj = 100; jj < 1000; jj += 100 )
+    //        runTimes.push_back( std::make_tuple( powerFunc, zeroDuration, ii, "Loop", jj ) );
+    //}
 
-    for ( size_t ii = 0; ii < runTimes.size(); ++ii )
-    {
-        auto && curr = runTimes[ ii ];
-        values.setNumThreads( std::get< 2 >( curr ) );
-        values.setNumPerRange( std::get< 4 >( curr ) );
-        std::get< 1 >( curr ) = values.run( std::get< 0 >( curr ) );
+    //for ( size_t ii = 0; ii < runTimes.size(); ++ii )
+    //{
+    //    auto && curr = runTimes[ ii ];
+    //    values.setNumThreads( std::get< 2 >( curr ) );
+    //    values.setNumPerThread( std::get< 4 >( curr ) );
+    //    std::get< 1 >( curr ) = values.run( std::get< 0 >( curr ) );
 
-        reportTimes( runTimes, ii );
-    }
+    //    reportTimes( runTimes, ii );
+    //}
 
-    for ( auto&& curr : runTimes )
-    {
-        report( "", curr );
-    }
+    //for ( auto&& curr : runTimes )
+    //{
+    //    report( "", curr );
+    //}
 
-    reportTimes( runTimes );
+    //reportTimes( runTimes );
 
-    //QApplication appl( argc, argv );
-    //Q_INIT_RESOURCE( application );
-    //CNarcissisticNumbers calc;
-    //return calc.exec();
-
-    return 0;
+    QApplication appl( argc, argv );
+    appl.setOrganizationDomain( "http://towel42.com" );
+    appl.setOrganizationName( "Scott Aron Bloom" );
+    appl.setApplicationName( "Narcissistic Number Calculator" );
+    appl.setApplicationVersion( "1.0.0" );
+    Q_INIT_RESOURCE( application );
+    CNarcissisticNumbers calc;
+    return calc.exec();
 }
 
 

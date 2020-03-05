@@ -20,18 +20,21 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef _NarcissisticNumbers_H
-#define _NarcissisticNumbers_H
+#ifndef _NARCISSISTICNUMBERS_H
+#define _NARCISSISTICNUMBERS_H
 
 #include <QDialog>
 #include <memory>
 #include <unordered_map>
 #include <functional>
 #include <list>
-namespace Ui {class CNarcissisticNumbers;};
+#include <chrono>
 
+namespace Ui {class CNarcissisticNumbers;};
+class CNarcissisticNumCalculator;
 class QStringListModel;
 class QAbstractButton;
+class QTimer;
 
 class CNarcissisticNumbers : public QDialog
 {
@@ -39,55 +42,29 @@ class CNarcissisticNumbers : public QDialog
 
 public:
     CNarcissisticNumbers(QWidget *parent = 0);
+
     ~CNarcissisticNumbers();
-    void keyPressEvent( QKeyEvent * event );
 
-    int numValues() const;
-    bool eventFilter(QObject *obj, QEvent *event);
-    
 public slots:
-    void binaryOperatorClicked( char op );
+    void slotChanged();
+    void slotRun();
+    void slotShowResults();
 
-    void btnEnterClicked();
+    void updateUI( bool finished );
 
-    void btnCClicked();
-    void btnDelClicked();
-    void btnBSClicked();
-
-    void btnAverageClicked();
-    void btnNarcissisticClicked();
-    void btnFactorsClicked( bool incNum );
-
-    void reportPrime( std::list<int64_t>& factors, int64_t curr, bool incNum, int numShowsPrime );
-
-    void btnPrimeFactorsClicked();
-    void btnPerfectClicked();
-    void btnSemiPerfectClicked();
-
-    void btnWeirdClicked();
-    void btnSublimeClicked();
-    void btnAbundantClicked();
-    void slotDataChanged();
 private:
-    template< typename T >
-    T getLastValue( bool popLast );
-    void addValue( char value );
-    void addLastValue( double value );
-    void addLastValue( bool value );
-    void addLastValue( int64_t value );
-    void addLastValue( const QString & newValue );
-    std::pair< int64_t, std::list< int64_t > > getSumOfFactors( int64_t curr, bool properFactors ) const;
-    std::pair< bool, std::list< int64_t > > isAbundant( int64_t num ) const;
-    std::pair< bool, std::list< int64_t > > isSemiPerfect( int64_t num ) const;
-    std::pair< bool, std::list< int64_t > > isPerfect( int64_t num ) const;
+    void setNumbersList( const std::list< int64_t >& numbers );
+    std::list< int64_t > getNumbersList() const;
 
-    std::list< int64_t > computeFactors( int64_t num ) const;
-    std::list< int64_t > computePrimeFactors( int64_t num ) const;
-    bool isSemiPerfect( const std::vector< int64_t >& numbers, size_t n, int64_t num ) const;
+    void loadSettings();
+    void saveSettings() const;
 
+    QString getNumberList( const std::list<int64_t> & numbers ) const;
+
+    QTimer * fMonitorTimer{nullptr};
+    int fFinishedCount{ 0 };
     std::unique_ptr< Ui::CNarcissisticNumbers > fImpl;
-
-    void initMaps();
+    std::unique_ptr< CNarcissisticNumCalculator > fCalculator;
 };
 
-#endif // _ALCULATOR_H
+#endif 
