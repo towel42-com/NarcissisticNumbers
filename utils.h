@@ -3,13 +3,13 @@
 // Copyright( c ) 2020 Scott Aron Bloom
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this softwareand associated documentation files( the "Software" ), to deal
+// of this software and associated documentation files( the "Software" ), to deal
 // in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and /or sell
+// to use, copy, modify, merge, publish, distribute, sub-license, and /or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions :
 //
-// The above copyright noticeand this permission notice shall be included in
+// The above copyright notice and this permission notice shall be included in
 // all copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -71,6 +71,7 @@ int fromChar( char ch, int base, bool& aOK );
 char toChar( int value );
 
 std::string toString( int64_t val, int base );
+void toDigits( int64_t val, int base, std::pair< int8_t*, int >& retVal, size_t& numDigits );
 int64_t fromString( const std::string& str, int base );
 std::string getTimeString( const std::pair< std::chrono::system_clock::time_point, std::chrono::system_clock::time_point >& startEndTime, bool reportTotalSeconds, bool highPrecision );
 std::string getTimeString( const std::chrono::system_clock::duration& duration, bool reportTotalSeconds, bool highPrecision );
@@ -84,6 +85,9 @@ std::pair< bool, std::list< int64_t > > isSemiPerfect( int64_t num );
 std::pair< int64_t, std::list< int64_t > > getSumOfFactors( int64_t curr, bool properFactors );
 std::pair< bool, std::list< int64_t > > isPerfect( int64_t num );
 std::pair< bool, std::list< int64_t > > isAbundant( int64_t num );
+
+std::string getNumberListString( const std::list<int64_t>& numbers, int base );
+std::string getNumberListString( const std::list<uint64_t>& numbers, int base );
 }
 
 #endif

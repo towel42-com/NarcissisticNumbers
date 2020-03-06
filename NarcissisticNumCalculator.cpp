@@ -1,3 +1,25 @@
+// The MIT License( MIT )
+//
+// Copyright( c ) 2020 Scott Aron Bloom
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files( the "Software" ), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sub-license, and /or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions :
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 #include "NarcissisticNumCalculator.h"
 #include "utils.h"
 
@@ -7,6 +29,7 @@
 #include <cctype>
 #include <string>
 #include <cstring>
+#include <sstream>
 
 namespace CNarcissisticNumCalculatorDefaults
 {
@@ -58,41 +81,66 @@ namespace CNarcissisticNumCalculatorDefaults
         return settings.setValue( "ByRange", value );
     }
 
-    std::list< int64_t > toIntList( const QList< QVariant > & inList )
+    std::list< uint64_t > toIntList( const QList< QVariant > & inList )
     {
-        std::list< int64_t > retVal;
+        std::list< uint64_t > retVal;
         for( auto && ii : inList )
-            retVal.push_back( ii.toLongLong() );
+            retVal.push_back( ii.toULongLong() );
         return retVal;
     }
-    std::pair< int64_t, int64_t > range()
+
+    std::pair< uint64_t, uint64_t > range()
     {
         QSettings settings;
         auto retVal = toIntList( settings.value( "Range", QVariant::fromValue( QList< QVariant >() << 0 << kDefaultMaxNum ) ).value< QList< QVariant > >() );
         return std::make_pair( retVal.front(), retVal.back() );
     }
 
-    void setRange( const std::pair< int64_t, int64_t >& value )
+    void setRange( const std::pair< uint64_t, uint64_t >& value )
     {
         QSettings settings;
         auto values = QList< QVariant >() << value.first << value.second;
         return settings.setValue( "Range", QVariant::fromValue( values ) );
     }
 
-    std::list< int64_t > numbersList()
+    std::list< uint64_t > numbersList()
     {
         QSettings settings;
         auto retVal = toIntList( settings.value( "NumbersList", QVariant::fromValue( QList< QVariant >() ) ).value< QList< QVariant > >() );
         return retVal;
     }
 
-    void setNumbersList( const std::list< int64_t >& value )
+    void setNumbersList( const std::list< uint64_t >& value )
     {
         QSettings settings;
         QList< QVariant > values;
         for( auto && ii : value )
             values << ii;
         return settings.setValue( "NumbersList", QVariant::fromValue( values ) );
+    }
+
+    bool useStringBasedAnalysis()
+    {
+        QSettings settings;
+        return settings.value( "UseStringBasedAnalysis", false ).toBool();
+    }
+
+    void setUseStringBasedAnalysis( bool value )
+    {
+        QSettings settings;
+        return settings.setValue( "UseStringBasedAnalysis", value );
+    }
+
+    void reset()
+    {
+        QSettings settings;
+        settings.remove( "Base" );
+        settings.remove( "NumThreads" );
+        settings.remove( "NumPerThread" );
+        settings.remove( "ByRange" );
+        settings.remove( "Range" );
+        settings.remove( "NumbersList" );
+        settings.remove( "UseStringBasedAnalysis" );
     }
 }
 
@@ -179,17 +227,20 @@ bool CNarcissisticNumCalculator::parse( int argc, char** argv )
     return true;
 }
 
-void CNarcissisticNumCalculator::launch( bool report )
+void CNarcissisticNumCalculator::launch( const TReportFunctionType & reportFunction, bool callInLoop )
 {
     for ( unsigned int ii = 0; ii < fNumThreads; ++ii )
     {
-        fHandles.push_back( std::async( std::launch::async, &CNarcissisticNumCalculator::analyzeNextRange, this ) );
+        fHandles.push_back( std::async( std::launch::async, &CNarcissisticNumCalculator::analyzeNextPartition, this ) );
+        if ( callInLoop && reportFunction )
+        {
+            if ( !reportFunction( 0, fNumThreads, ii ) )
+                break;
+        }
     }
-    std::unique_lock< std::mutex > lock( fMutex );
-    if ( report )
+    if ( reportFunction )
     {
-        std::cout << "=============================================\n";
-        std::cout << "Number of Threads Created: " << fHandles.size() << "\n";
+        reportFunction( 0, fNumThreads, fNumThreads);
     }
 }
 
@@ -212,16 +263,34 @@ std::chrono::system_clock::duration CNarcissisticNumCalculator::run( const std::
     report();
     if ( pwrFunction )
         fPowerFunction = pwrFunction;
-    launch();
+
+    TReportFunctionType launchReport = 
+        [this]( int /*min*/, int /*max*/, int /*curr*/ )
+    {
+        std::cout << "=============================================\n";
+        std::unique_lock< std::mutex > lock( fMutex );
+        std::cout << "Number of Threads Created: " << fHandles.size() << "\n";
+        return true;
+    };
+    launch( launchReport, false );
     std::cout << "=============================================\n";
-    partition();
+
+    TReportFunctionType partitionReport =
+        [ this ]( int /*min*/, int /*max*/, int /*curr*/ )
+    {
+        std::unique_lock< std::mutex > lock( fMutex );
+        std::cout << "Number of Ranges Created: " << fPartitions.size() << "\n";
+        std::cout << "=============================================\n";
+        return true;
+    };
+    partition( partitionReport, false );
 
     auto prev = std::chrono::system_clock::now();
-    reportNumRangesRemaining( prev, true );
+    reportNumPartitionsRemaining( prev, true );
     while ( !isFinished( &prev ) )
     {
     }
-    reportNumRangesRemaining( prev, true );
+    reportNumPartitionsRemaining( prev, true );
 
     fRunTime.second = std::chrono::system_clock::now();
     reportFindings();
@@ -279,10 +348,11 @@ int CNarcissisticNumCalculator::getInt( int& ii, int argc, char** argv, const ch
     return retVal;
 }
 
-void CNarcissisticNumCalculator::dumpNumbers( const std::list< int64_t >& numbers ) const
+void CNarcissisticNumCalculator::dumpNumbers( const std::list< uint64_t >& numbers ) const
 {
     bool first = true;
     size_t ii = 0;
+    std::string str;
     for ( auto&& currVal : numbers )
     {
         if ( ii && ( ii % 5 == 0 ) )
@@ -295,6 +365,7 @@ void CNarcissisticNumCalculator::dumpNumbers( const std::list< int64_t >& number
         else
             std::cout << "    ";
         first = false;
+        
         std::cout << NUtils::toString( currVal, fBase );
         if ( fBase != 10 )
             std::cout << "(=" << currVal << ")";
@@ -347,11 +418,11 @@ std::pair< bool, bool > CNarcissisticNumCalculator::checkAndAddValue( int64_t va
     return std::make_pair( isNarcissistic, true );
 }
 
-void CNarcissisticNumCalculator::analyzeNextRange()
+void CNarcissisticNumCalculator::analyzeNextPartition()
 {
     while ( true ) // infinite loop 
     {
-        TRangeSet currRange;
+        TPartitionSet currRange;
         {
             //std::cout << std::this_thread::get_id() << " - Trying next\n";
             std::unique_lock< std::mutex > lock( fMutex );
@@ -370,23 +441,32 @@ void CNarcissisticNumCalculator::analyzeNextRange()
             //std::cout << "UnLocked: Analyze Next Range (still going)\n";
         }
         findNarcissistic( currRange );
+        if ( fStopped )
+            break;
     }
 }
 
-void CNarcissisticNumCalculator::findNarcissistic( const TRangeSet& range )
+void CNarcissisticNumCalculator::findNarcissistic( const TPartitionSet& range )
 {
+    auto start = std::chrono::system_clock::now();
+
     if ( std::get< 0 >( range ) )
         findNarcissisticRange( std::get< 2 >( range ) );
     else
         findNarcissisticList( std::get< 1 >( range ) );
+
+    auto end = std::chrono::system_clock::now();
+
+    std::lock_guard< std::mutex > lock( fMutex );
+    fPartitionTimes.push_back( end - start );
 }
 
-void CNarcissisticNumCalculator::findNarcissisticRange( int64_t min, int64_t max )
+void CNarcissisticNumCalculator::findNarcissisticRange( uint64_t min, uint64_t max )
 {
     return findNarcissisticRange( std::make_pair( min, max ) );
 }
 
-void CNarcissisticNumCalculator::findNarcissisticRange( const std::pair< int64_t, int64_t >& range )
+void CNarcissisticNumCalculator::findNarcissisticRange( const std::pair< uint64_t, uint64_t >& range )
 {
     {
         //std::unique_lock< std::mutex > lock(fMutex);
@@ -404,6 +484,8 @@ void CNarcissisticNumCalculator::findNarcissisticRange( const std::pair< int64_t
             return;
         if ( isNarcissistic )
             numArm++;
+        if ( fStopped )
+            break;
     }
     {
         //std::unique_lock< std::mutex > lock(fMutex);
@@ -413,7 +495,7 @@ void CNarcissisticNumCalculator::findNarcissisticRange( const std::pair< int64_t
     }
 }
 
-void CNarcissisticNumCalculator::findNarcissisticList( const std::list< int64_t >& values )
+void CNarcissisticNumCalculator::findNarcissisticList( const std::list< uint64_t >& values )
 {
     int numArm = 0;
     for ( auto ii : values )
@@ -428,29 +510,38 @@ void CNarcissisticNumCalculator::findNarcissisticList( const std::list< int64_t 
     }
 }
 
-void CNarcissisticNumCalculator::partition( bool report )
+int64_t CNarcissisticNumCalculator::partition( const TReportFunctionType & reportFunction, bool callInLoop )
 {
+    int64_t min = 0;
+    int64_t max = 0;
+    int64_t numPartitions = 0;
     if ( std::get< 0 >( fNumbers ) )
     {
-        int num = 0;
-        for ( auto ii = std::get< 1 >( fNumbers ).first; ii < std::get< 1 >( fNumbers ).second; ii += fNumPerThread )
+        min = std::get< 1 >( fNumbers ).first;
+        max = std::get< 1 >( fNumbers ).second;
+        for ( auto ii = min; ii < max; ii += fNumPerThread, ++numPartitions )
         {
-            auto max = std::min( std::get< 1 >( fNumbers ).second, ii + fNumPerThread );
-            addRange( std::make_pair( ii, max ) );
-            //fHandles.push_back( std::async( std::launch::async, &CNarcissisticNumCalculator::findNarcissisticRange, this, num++, ii, max ) );
+            auto lclMax = std::min( std::get< 1 >( fNumbers ).second, static_cast< uint64_t >( ii + fNumPerThread ) );
+            addPartition( std::make_pair( ii, lclMax ) );
+            if ( callInLoop && reportFunction && ( ( numPartitions % 100 ) == 0 ) )
+            {
+                if ( !reportFunction( min, max, numPartitions ) )
+                    break;
+            }
         }
     }
     else
     {
         if ( std::get< 2 >( fNumbers ).size() <= fNumPerThread )
         {
-            addRange( std::get< 2 >( fNumbers ) );
-            //   fHandles.push_back(std::async(std::launch::async, &CNarcissisticNumCalculator::findNarcissisticList, this, 0, std::get< 2 >( fNumbers ) ) );
+            addPartition( std::get< 2 >( fNumbers ) );
+            numPartitions++;
         }
         else
         {
-            auto tmp = std::get< 2 >( fNumbers );
-            int num = 0;
+            auto && tmp = std::get< 2 >( fNumbers );
+            min = 0;
+            max = tmp.size(); 
             while ( !tmp.empty() )
             {
                 auto start = tmp.begin();
@@ -461,25 +552,27 @@ void CNarcissisticNumCalculator::partition( bool report )
                     std::advance( end, fNumPerThread );
                 }
                 //auto curr = std::list< int64_t >( start, end );
-                addRange( std::list< int64_t >( start, end ) );
-                // fHandles.push_back( std::async( std::launch::async, &CNarcissisticNumCalculator::findNarcissisticList, this, num++, curr ) );
+                addPartition( std::list< uint64_t >( start, end ) );
                 tmp.erase( start, end );
+                numPartitions++;
+                if ( callInLoop && reportFunction && ( ( numPartitions % 100 ) == 0 ) )
+                {
+                    if ( !reportFunction( 0, max, numPartitions ) )
+                        break;
+                }
             }
         }
     }
+    if ( reportFunction )
     {
-        std::unique_lock< std::mutex > lock( fMutex );
-        if ( report )
-        {
-            std::cout << "Number of Ranges Created: " << fPartitions.size() << "\n";
-            std::cout << "=============================================\n";
-        }
+        reportFunction( min, max, max );
     }
     fFinishedPartition = true;
     fConditionVariable.notify_all();
+    return numPartitions;
 }
 
-void CNarcissisticNumCalculator::reportNumRangesRemaining( std::chrono::system_clock::time_point& prev, bool force )
+void CNarcissisticNumCalculator::reportNumPartitionsRemaining( std::chrono::system_clock::time_point& prev, bool force )
 {
     auto now = std::chrono::system_clock::now();
     auto duration = now - prev;
@@ -501,7 +594,7 @@ bool CNarcissisticNumCalculator::isFinished( std::chrono::system_clock::time_poi
     for ( auto ii = fHandles.begin(); ii != fHandles.end(); )
     {
         if ( prev )
-            reportNumRangesRemaining( *prev );
+            reportNumPartitionsRemaining( *prev );
 
         if ( ( *ii ).wait_for( std::chrono::seconds( 0 ) ) == std::future_status::ready ) // finished
             ii = fHandles.erase( ii );
@@ -511,22 +604,67 @@ bool CNarcissisticNumCalculator::isFinished( std::chrono::system_clock::time_poi
     return fHandles.empty();
 }
 
+std::pair< std::chrono::system_clock::duration, std::chrono::system_clock::duration > CNarcissisticNumCalculator::computeETA() const
+{
+    std::chrono::system_clock::duration totalTime( 0 );
+    for ( auto&& ii : fPartitionTimes )
+        totalTime += ii;
+    auto averageTime = fPartitionTimes.size() ? ( totalTime / fPartitionTimes.size() ) : std::chrono::system_clock::duration( 0 );
+    auto eta = averageTime * numPartitions();
+    return std::make_pair( averageTime, eta );
+}
+
+std::pair< std::string, bool > CNarcissisticNumCalculator::currentResults()
+{
+    bool finished = isFinished( nullptr );
+
+    std::ostringstream oss;
+    oss << "Run Time: " << NUtils::getTimeString( std::chrono::system_clock::now() - startTime(), true, true ) << "\n";
+    if ( !finished )
+    {
+        oss << getRunningResults();
+    }
+
+    auto numbers = results();
+    oss
+        << "Number of Narcissistic Numbers Found: " << numbers.size() << "\n"
+        << NUtils::getNumberListString( numbers, fBase );
+
+    return std::make_pair( oss.str(), finished );
+}
+
+std::string CNarcissisticNumCalculator::getRunningResults() const
+{
+    std::chrono::system_clock::duration avg;
+    std::chrono::system_clock::duration eta;
+    std::tie( avg, eta ) = computeETA();
+
+    std::ostringstream oss;
+    oss
+        << "Number of Partitions Remaining: " << numPartitions() << "\n"
+        << "Number of Threads Remaining: " << numThreads() << "\n"
+        << "Average Time/Partition: " << NUtils::getTimeString( avg, false, true ) << "\n"
+        << "ETA: " << NUtils::getTimeString( eta, false, false ) << "\n"
+        ;
+    return oss.str();
+}
+
 void CNarcissisticNumCalculator::addNarcissisticValue( int64_t value )
 {
     std::lock_guard< std::mutex > lock( fMutex );
     fNarcissisticNumbers.push_back( value );
 }
 
-void CNarcissisticNumCalculator::addRange( const std::pair< int64_t, int64_t >& range )
+void CNarcissisticNumCalculator::addPartition( const std::pair< uint64_t, uint64_t >& range )
 {
-    auto&& tmp = std::make_tuple( true, std::list< int64_t >(), range );
+    auto&& tmp = std::make_tuple( true, std::list< uint64_t >(), range );
     std::unique_lock< std::mutex > lock( fMutex );
     fPartitions.push_back( tmp );
 }
 
-void CNarcissisticNumCalculator::addRange( const std::list< int64_t >& list )
+void CNarcissisticNumCalculator::addPartition( const std::list< uint64_t >& list )
 {
-    auto&& tmp = std::make_tuple( false, list, std::make_pair< int64_t, int64_t >( 0, 0 ) );
+    auto&& tmp = std::make_tuple( false, list, std::make_pair< uint64_t, uint64_t >( 0, 0 ) );
     std::unique_lock< std::mutex > lock( fMutex );
     fPartitions.push_back( tmp );
 }

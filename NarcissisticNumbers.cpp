@@ -3,13 +3,13 @@
 // Copyright( c ) 2020 Scott Aron Bloom
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this softwareand associated documentation files( the "Software" ), to deal
+// of this software and associated documentation files( the "Software" ), to deal
 // in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and /or sell
+// to use, copy, modify, merge, publish, distribute, sub-license, and /or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions :
 //
-// The above copyright noticeand this permission notice shall be included in
+// The above copyright notice and this permission notice shall be included in
 // all copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -23,6 +23,8 @@
 #include "NarcissisticNumbers.h"
 #include "NarcissisticNumCalculator.h"
 #include "utils.h"
+#include "SpinBox64.h"
+#include "SpinBox64U.h"
 
 #include "ui_NarcissisticNumbers.h"
 
@@ -32,21 +34,34 @@
 #include <QTimer>
 #include <unordered_map>
 #include <thread>
+#include <limits>
+#include <QLocale>
+#include <QProgressDialog>
+#include <QCloseEvent>
+#include <QProgressBar>
 
 CNarcissisticNumbers::CNarcissisticNumbers( QWidget* parent )
     : QDialog( parent ),
     fImpl( new Ui::CNarcissisticNumbers )
 {
     fImpl->setupUi( this );
+    fImpl->maxRange->setMaximum( CSpinBox64U::maxAllowed() );
+    fImpl->minRange->setMaximum( CSpinBox64U::maxAllowed() );
+    fImpl->numPerThread->setMaximum( CSpinBox64::maxAllowed() );
+    fImpl->maxLabel->setText( tr( "Maximum: %1").arg( locale().toString( CSpinBox64U::maxAllowed() ) ) );
     //setWindowFlags( windowFlags() & ~Qt::WindowContextHelpButtonHint );
 
     (void)connect( fImpl->byRange, &QAbstractButton::clicked, this, [this](){ slotChanged(); } );
     (void)connect( fImpl->byNumbers, &QAbstractButton::clicked, this, [ this ]() { slotChanged(); } );
     (void)connect( fImpl->run, &QAbstractButton::clicked, this, [ this ]() { slotRun(); } );
+    (void)connect( fImpl->reset, &QAbstractButton::clicked, this, [ this ]() { slotReset(); } );
+    (void)connect( fImpl->maxRange, static_cast<void (CSpinBox64U::*)( uint64_t )>( &CSpinBox64U::valueChanged ), this, [ this ]() { slotRangeChanged(); } );
+    (void)connect( fImpl->minRange, static_cast<void (CSpinBox64U::*)( uint64_t )>( &CSpinBox64U::valueChanged ), this, [ this ]() { slotRangeChanged(); } );
+    (void)connect( fImpl->base, static_cast<void ( QSpinBox::* )( int )>( &QSpinBox::valueChanged ), fImpl->minRange, &CSpinBox64U::setDisplayIntegerBase );
+    (void)connect( fImpl->base, static_cast<void ( QSpinBox::* )( int )>( &QSpinBox::valueChanged ), fImpl->maxRange, &CSpinBox64U::setDisplayIntegerBase ) ;
 
     fImpl->numCores->setText( QString::number( std::thread::hardware_concurrency() ) );
     loadSettings();
-
     setFocus( Qt::MouseFocusReason );
     slotChanged();
     fMonitorTimer = new QTimer( this );
@@ -60,6 +75,18 @@ CNarcissisticNumbers::~CNarcissisticNumbers()
     saveSettings();
 }
 
+void CNarcissisticNumbers::closeEvent( QCloseEvent * e )
+{
+    if ( fCalculator && !fCalculator->isFinished( nullptr ) )
+    {
+        e->ignore();
+        fCalculator->setStopped( true );
+        QTimer::singleShot( 0, this, &QDialog::close );
+    }
+    else
+        e->accept();
+}
+
 void CNarcissisticNumbers::loadSettings()
 {
     QSettings settings;
@@ -71,6 +98,7 @@ void CNarcissisticNumbers::loadSettings()
     fImpl->byNumbers->setChecked( !CNarcissisticNumCalculatorDefaults::byRange() );
     fImpl->minRange->setValue( CNarcissisticNumCalculatorDefaults::range().first );
     fImpl->maxRange->setValue( CNarcissisticNumCalculatorDefaults::range().second );
+
     setNumbersList( CNarcissisticNumCalculatorDefaults::numbersList()  );
 }
 
@@ -86,7 +114,7 @@ void CNarcissisticNumbers::saveSettings() const
     CNarcissisticNumCalculatorDefaults::setNumbersList( getNumbersList() );
 }
 
-void CNarcissisticNumbers::setNumbersList( const std::list< int64_t >& numbers )
+void CNarcissisticNumbers::setNumbersList( const std::list< uint64_t >& numbers )
 {
     QStringList tmp;
     for ( auto&& ii : numbers )
@@ -94,10 +122,10 @@ void CNarcissisticNumbers::setNumbersList( const std::list< int64_t >& numbers )
     fImpl->numList->setText( tmp.join( " " ) );
 }
 
-std::list< int64_t > CNarcissisticNumbers::getNumbersList() const
+std::list< uint64_t > CNarcissisticNumbers::getNumbersList() const
 {
     auto tmp = fImpl->numList->text().split( " ", QString::SkipEmptyParts );
-    std::list< int64_t > numbers;
+    std::list< uint64_t > numbers;
     for ( auto&& ii : tmp )
     {
         bool aOK;
@@ -115,9 +143,17 @@ void CNarcissisticNumbers::slotChanged()
     fImpl->numList->setEnabled( fImpl->byNumbers->isChecked() );
 }
 
+void CNarcissisticNumbers::slotReset()
+{
+    CNarcissisticNumCalculatorDefaults::reset();
+    loadSettings();
+}
+
 void CNarcissisticNumbers::slotRun()
 {
     fCalculator.reset( nullptr );
+    fNumPartitions = 0;
+    fFinishedCount = 0;
     slotShowResults();
 
     fCalculator.reset( new CNarcissisticNumCalculator( false ) );
@@ -131,40 +167,102 @@ void CNarcissisticNumbers::slotRun()
     fCalculator->setNumbersList( getNumbersList() );
 
     slotShowResults();
-    fCalculator->launch( false );
-    slotShowResults();
-    fCalculator->partition( false );
-    slotShowResults();
+    if ( !fProgress )
+    {
+        fProgress = new QProgressDialog( this );
+        fProgress->setWindowFlags( windowFlags() & ~Qt::WindowContextHelpButtonHint );
+        fProgress->setWindowTitle( tr( "Computing" ) );
+        auto bar = new QProgressBar;
+        bar->setFormat( "%p% (%v of %m)" );
+        fProgress->setBar( bar );
+        fProgress->setMinimumDuration( 100 );
+    }
 
-    fMonitorTimer->start();
-    fFinishedCount = 0;
+    fProgress->setLabelText( "Launching Threads" );
+    fProgress->setCancelButtonText( "Cancel" );
+    CNarcissisticNumCalculator::TReportFunctionType launchReport = [ this ](uint64_t min, uint64_t max, uint64_t curr )
+        { 
+            fProgress->setMinimum( min );
+            fProgress->setMaximum( max );
+            fProgress->setValue( curr );
+            qApp->processEvents( QEventLoop::ProcessEventsFlag::AllEvents );
+            return !fProgress->wasCanceled();
+        };
+
+    fCalculator->launch( launchReport, true );
+    
+    if ( !fProgress->wasCanceled() )
+    {
+        fProgress->setLabelText( "Partitioning Numbers" );
+        fProgress->show();
+        CNarcissisticNumCalculator::TReportFunctionType partitionReport = [ this ]( uint64_t min, uint64_t max, uint64_t curr )
+        {
+            fProgress->setMinimum( min );
+            fProgress->setMaximum( max );
+            fProgress->setValue( curr );
+            qApp->processEvents( QEventLoop::ProcessEventsFlag::AllEvents );
+            return !fProgress->wasCanceled();
+        };
+        fNumPartitions = fCalculator->partition( partitionReport, true );
+    }
+
+    if ( !fProgress->wasCanceled() )
+    {
+        fProgress->setLabelText( "Finding Narcissistic" );
+        fProgress->setMinimum( 0 );
+        fProgress->setMaximum( fNumPartitions );
+        fProgress->setValue( static_cast< int >( fNumPartitions - fCalculator->numPartitions() ) );
+        fProgress->show();
+
+        fMonitorTimer->start();
+        fFinishedCount = 0;
+    }
+    else
+    {
+        fCalculator->setStopped( true );
+        updateUI( true );
+    }
 }
 
 void CNarcissisticNumbers::slotShowResults()
 {
-    auto result = tr( "Results:" );
+    std::string results;
+    bool finished = false;
+
     if ( fCalculator )
     {
-        result += "\n============================================\n";
-        bool finished = fCalculator->isFinished( nullptr );
-
-        result += tr( "Run Time: %1\n" ).arg( QString::fromStdString( NUtils::getTimeString( std::chrono::system_clock::now() - fCalculator->startTime(), true, true ) ) );
-        result += tr( "Number of Partitions Remaining: %1\n" ).arg( fCalculator->numPartitions() );
-        result += tr( "Number of Threads Remaining: %1\n" ).arg( fCalculator->numThreads() );
-
-        auto numbers = fCalculator->results();
-        result += tr( "Number of Narcissistic Numbers Found: %1\n" ).arg( numbers.size() );
-        result += getNumberList( numbers );
-
-        updateUI( finished );
-
-        if ( finished )
-            fFinishedCount++;
-        if ( fFinishedCount >= 3 )
-            fMonitorTimer->stop();
+        std::tie( results, finished ) = fCalculator->currentResults();
+        if ( fProgress )
+        {
+            fProgress->setValue( static_cast<int>( fNumPartitions - fCalculator->numPartitions() ) );
+            if ( fProgress->wasCanceled() )
+            {
+                fCalculator->setStopped( true );
+            }
+            else
+            {
+                auto runningResults = QString::fromStdString( fCalculator->getRunningResults() );
+                fProgress->setLabelText( tr( "Finding Narcissistic\n%1" ).arg( runningResults ) );
+            }
+        }
     }
-    fImpl->results->setText( result );
-    qApp->processEvents( QEventLoop::ProcessEventsFlag::ExcludeUserInputEvents );
+    fImpl->results->setText( QString::fromStdString( results ) );
+
+    updateUI( finished );
+
+    if ( finished )
+    {
+        fFinishedCount++;
+        auto tmp = fProgress;
+        fProgress = nullptr;
+        delete tmp;
+    }
+    if ( fFinishedCount >= 3 )
+    {
+        fMonitorTimer->stop();
+    }
+
+    qApp->processEvents( QEventLoop::ProcessEventsFlag::AllEvents );
 }
 
 void CNarcissisticNumbers::updateUI( bool finished )
@@ -182,28 +280,21 @@ void CNarcissisticNumbers::updateUI( bool finished )
         slotChanged();
 }
 
-QString CNarcissisticNumbers::getNumberList( const std::list<int64_t>& numbers ) const
+
+void CNarcissisticNumbers::slotRangeChanged()
 {
-    QString retVal;
-    bool first = true;
-    size_t ii = 0;
-    auto base = fImpl->base->value();
-    for ( auto&& currVal : numbers )
+    auto rangeSize = fImpl->maxRange->value() - fImpl->minRange->value();
+    auto currSender = dynamic_cast<QWidget*>( sender() );
+    if ( rangeSize < 1 )
     {
-        if ( ii && ( ii % 5 == 0 ) )
-        {
-            retVal += "\n";
-            first = true;
-        }
-        if ( !first )
-            retVal += ", ";
+        if ( currSender == fImpl->maxRange )
+            fImpl->maxRange->setValue( fImpl->minRange->value() + 1 );
         else
-            retVal += "    ";
-        first = false;
-        retVal += QString::fromStdString( NUtils::toString( currVal, base ) );
-        if ( base != 10 )
-            retVal += tr( "(=%1)" ).arg( currVal );
-        ii++;
+            fImpl->minRange->setValue( fImpl->maxRange->value() - 1 );
     }
-    return retVal;
+    else if ( rangeSize > 100000 )
+    {
+        fImpl->numPerThread->setValue( rangeSize / 10000 );
+    }
 }
+

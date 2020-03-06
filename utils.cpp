@@ -3,13 +3,13 @@
 // Copyright( c ) 2020 Scott Aron Bloom
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this softwareand associated documentation files( the "Software" ), to deal
+// of this software and associated documentation files( the "Software" ), to deal
 // in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and /or sell
+// to use, copy, modify, merge, publish, distribute, sub-license, and /or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions :
 //
-// The above copyright noticeand this permission notice shall be included in
+// The above copyright notice and this permission notice shall be included in
 // all copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -64,6 +64,18 @@ namespace NUtils
         return 'a' + value - 10;
     }
 
+    void toDigits( int64_t val, int base, std::pair< int8_t *, int > & retVal, size_t & numDigits )
+    {
+        numDigits = 0;
+        do
+        {
+            int64_t quotient = val / base;
+            int8_t remainder = static_cast< int8_t >( val % base );
+            retVal.first[ numDigits++ ] = remainder;
+            val = quotient;
+        } while ( val != 0 );
+    }
+
     std::string toString( int64_t val, int base )
     {
         std::string retVal;
@@ -112,8 +124,8 @@ namespace NUtils
     std::string getTimeString( const std::chrono::system_clock::duration& duration, bool reportTotalSeconds, bool highPrecision )
     {
         auto totalSeconds = getSeconds( duration, highPrecision );
-        auto hrs = std::chrono::duration_cast<std::chrono::hours>( duration ).count();
-        auto mins = std::chrono::duration_cast<std::chrono::minutes>( duration ).count() - ( hrs * 60 );
+        auto hrs = static_cast< int64_t >( std::chrono::duration_cast<std::chrono::hours>( duration ).count() );
+        auto mins = static_cast<int64_t>( std::chrono::duration_cast<std::chrono::minutes>( duration ).count() - ( hrs * 60 ) );
         double secs = 1.0 * std::chrono::duration_cast<std::chrono::seconds>( duration ).count();
         if ( highPrecision )
             secs = ( std::chrono::duration_cast<std::chrono::duration< double, std::micro >>( duration ).count() ) / 1000000.0;
@@ -156,28 +168,35 @@ namespace NUtils
         return oss.str();
     }
 
-    bool isNarcissistic( int64_t val, int base, bool& aOK )
+    bool isNarcissisticDigits( int64_t val, int base, bool& aOK )
     {
-        auto str = NUtils::toString( val, base );
+        aOK = true;
+        int8_t digits[ 4096 ] = {0};
+        size_t numDigits;
+        toDigits( val, base, std::make_pair( digits, 4096 ), numDigits );
 
         int64_t sumOfPowers = 0;
         int64_t value = 0;
-        for ( size_t ii = 0; ii < str.length(); ++ii )
+        for ( int64_t ii = numDigits - 1; ii >= 0; --ii )
         {
-            auto currChar = str[ ii ];
+            sumOfPowers += NUtils::power( digits[ ii ], numDigits );
 
-            int64_t currVal = NUtils::fromChar( currChar, base, aOK );
-            if ( !aOK )
-            {
-                std::cerr << "Invalid character: " << currChar << std::endl;
-                return false;
-            }
-            sumOfPowers += NUtils::power( currVal, str.length() );
-
-            value = ( value * base ) + currVal;
+            value = ( value * base ) + digits[ ii ];
         }
 
-        return value == sumOfPowers;
+        auto retVal = ( value == sumOfPowers );
+        return retVal;
+    }
+
+    // for 1000000
+    //0, 1, 2, 3, 4
+    //5, 6, 7, 8, 9
+    //153, 370, 371, 407, 1634
+    //8208, 9474, 54748, 92727, 93084
+    //548834
+    bool isNarcissistic( int64_t val, int base, bool& aOK )
+    {
+        return isNarcissisticDigits( val, base, aOK );
     }
 
     std::list< int64_t > computeFactors( int64_t num )
@@ -276,4 +295,40 @@ namespace NUtils
         return std::make_pair( sum.first > num, sum.second );
     }
 
+    template< typename T >
+    std::string getNumberListString( const std::list<T>& numbers, int base )
+    {
+        std::ostringstream oss;
+        bool first = true;
+        size_t ii = 0;
+        std::string str;
+        for ( auto&& currVal : numbers )
+        {
+            if ( ii && ( ii % 5 == 0 ) )
+            {
+                oss << "\n";
+                first = true;
+            }
+            if ( !first )
+                oss << ", ";
+            else
+                oss << "    ";
+            first = false;
+            
+            oss << NUtils::toString( currVal, base );
+            if ( base != 10 )
+                oss << "(=" << currVal << ")";
+            ii++;
+        }
+        return oss.str();
+    }
+
+    std::string getNumberListString( const std::list< int64_t >& numbers, int base )
+    {
+        return getNumberListString< int64_t >( numbers, base );
+    }
+    std::string getNumberListString( const std::list< uint64_t >& numbers, int base )
+    {
+        return getNumberListString< uint64_t >( numbers, base );
+    }
 }

@@ -3,13 +3,13 @@
 // Copyright( c ) 2020 Scott Aron Bloom
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this softwareand associated documentation files( the "Software" ), to deal
+// of this software and associated documentation files( the "Software" ), to deal
 // in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and /or sell
+// to use, copy, modify, merge, publish, distribute, sub-license, and /or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions :
 //
-// The above copyright noticeand this permission notice shall be included in
+// The above copyright notice and this permission notice shall be included in
 // all copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -19,7 +19,6 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
-
 
 #include "NarcissisticNumbers.h"
 #include "NarcissisticNumCalculator.h"
@@ -32,7 +31,7 @@
 #include <vector>
 #include <cmath>
 
-using TPowerFunc = std::function< int64_t( int64_t, int64_t ) >;
+using TPowerFunc = std::function< uint64_t( uint64_t, uint64_t ) >;
 using TRunTime = std::tuple< TPowerFunc, std::chrono::system_clock::duration, int, std::string, int >;
 
 void report( const std::string& prefix, const TRunTime& curr )
@@ -97,7 +96,7 @@ int main( int argc, char** argv )
     //    return 1;
 
 
-    //TPowerFunc powerFunc = []( int64_t x, int64_t y )->int64_t { return NUtils::power( x, y ); };
+    //TPowerFunc powerFunc = []( uint64_t x, uint64_t y )->uint64_t { return NUtils::power( x, y ); };
     //auto zeroDuration = std::chrono::system_clock::duration();
     //std::vector< TRunTime > runTimes;
     //int numCores = std::thread::hardware_concurrency();
@@ -133,11 +132,3 @@ int main( int argc, char** argv )
     CNarcissisticNumbers calc;
     return calc.exec();
 }
-
-
-// for 1000000
-//0, 1, 2, 3, 4
-//5, 6, 7, 8, 9
-//153, 370, 371, 407, 1634
-//8208, 9474, 54748, 92727, 93084
-//548834

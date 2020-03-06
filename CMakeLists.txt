@@ -5,7 +5,7 @@
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# to use, copy, modify, merge, publish, distribute, sub-license, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
 #
@@ -30,8 +30,48 @@ SET(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/Modules ${CMAKE_MODULE_PATH})
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED true)
-find_package(Threads)
+find_package(Threads REQUIRED)
 find_package(Qt5 COMPONENTS Core Widgets REQUIRED)
+
+# Get all propreties that cmake supports
+execute_process(COMMAND cmake --help-property-list OUTPUT_VARIABLE CMAKE_PROPERTY_LIST)
+
+# Convert command output into a CMake list
+STRING(REGEX REPLACE ";" "\\\\;" CMAKE_PROPERTY_LIST "${CMAKE_PROPERTY_LIST}")
+STRING(REGEX REPLACE "\n" ";" CMAKE_PROPERTY_LIST "${CMAKE_PROPERTY_LIST}")
+
+#function(print_properties)
+#    message ("CMAKE_PROPERTY_LIST = ${CMAKE_PROPERTY_LIST}")
+#endfunction(print_properties)
+#
+#function(print_target_properties tgt)
+#    if(NOT TARGET ${tgt})
+#      message("There is no target named '${tgt}'")
+#      return()
+#    endif()
+#
+#    foreach (prop ${CMAKE_PROPERTY_LIST})
+#        string(REPLACE "<CONFIG>" "${CMAKE_BUILD_TYPE}" prop ${prop})
+#    # Fix https://stackoverflow.com/questions/32197663/how-can-i-remove-the-the-location-property-may-not-be-read-from-target-error-i
+#    if(prop STREQUAL "LOCATION" OR prop MATCHES "^LOCATION_" OR prop MATCHES "_LOCATION$")
+#        continue()
+#    endif()
+#        # message ("Checking ${prop}")
+#        get_property(propval TARGET ${tgt} PROPERTY ${prop} SET)
+#        if (propval)
+#            get_target_property(propval ${tgt} ${prop})
+#            message ("${tgt} ${prop} = ${propval}")
+#        endif()
+#    endforeach(prop)
+#endfunction(print_target_properties)
+
+#print_target_properties (Qt5::Widgets )
+#get_target_property(_widgets_dirs Qt5::Widgets INTERFACE_INCLUDE_DIRECTORIES)
+#$list(GET _widgets_dirs 0 _qt_inc_dir)
+##MESSAGE( STATUS "IncDir=${_qt_inc_dir}" )
+#LIST(APPEND Qt5Widgets_INCLUDE_DIRS ${_qt_inc_dir}/QtWidgets/5.12.7)
+#include_directories( AFTER SYSTEM ${_qt_inc_dir}/QtWidgets/5.12.7 ${_qt_inc_dir}/QtWidgets/5.12.7/QtWidgets ${_qt_inc_dir}/QtGui/5.12.7 ${_qt_inc_dir}/QtGui/5.12.7/QtGui ${_qt_inc_dir}/QtCore/5.12.7 ${_qt_inc_dir}/QtCore/5.12.7/QtCore )
+
 
 find_package(Deploy REQUIRED)
 
