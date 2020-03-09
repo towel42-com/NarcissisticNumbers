@@ -132,6 +132,7 @@ add_executable(NarcissisticNumbers WIN32
 target_link_libraries( NarcissisticNumbers 
     Qt5::Widgets
     Qt5::Core
+    ${CMAKE_THREAD_LIBS_INIT}
 )
 SET(CMAKE_INSTALL_SYSTEM_RUNTIME_DESTINATION .)
 
