@@ -1,0 +1,306 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>CNarcissisticNumbers</class>
+ <widget class="QDialog" name="CNarcissisticNumbers">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>378</width>
+    <height>491</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Narcissistic Number Calculator</string>
+  </property>
+  <property name="windowIcon">
+   <iconset resource="application.qrc">
+    <normaloff>:/resources/calc.png</normaloff>:/resources/calc.png</iconset>
+  </property>
+  <layout class="QGridLayout" name="gridLayout">
+   <item row="7" column="0">
+    <widget class="QRadioButton" name="byNumbers">
+     <property name="text">
+      <string>List of Numbers:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="9" column="0" colspan="5">
+    <widget class="QTextEdit" name="results">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="readOnly">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="1">
+    <widget class="CSpinBox64" name="numPerThread">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="accelerated">
+      <bool>true</bool>
+     </property>
+     <property name="showGroupSeparator" stdset="0">
+      <bool>true</bool>
+     </property>
+     <property name="minimum">
+      <number>1</number>
+     </property>
+     <property name="maximum">
+      <number>1000000</number>
+     </property>
+     <property name="stepType">
+      <enum>QAbstractSpinBox::AdaptiveDecimalStepType</enum>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="0">
+    <widget class="QLabel" name="label_2">
+     <property name="text">
+      <string>Number of Threads:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="0">
+    <widget class="QLabel" name="label_5">
+     <property name="text">
+      <string>Number of Cores:</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="4" rowspan="2">
+    <spacer name="horizontalSpacer">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>40</width>
+       <height>20</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item row="0" column="1">
+    <widget class="QSpinBox" name="base">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="minimum">
+      <number>2</number>
+     </property>
+     <property name="maximum">
+      <number>36</number>
+     </property>
+    </widget>
+   </item>
+   <item row="8" column="0">
+    <widget class="QLabel" name="label_6">
+     <property name="text">
+      <string>Results:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="3">
+    <widget class="CSpinBox64U" name="maxRange">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="accelerated">
+      <bool>true</bool>
+     </property>
+     <property name="showGroupSeparator" stdset="0">
+      <bool>true</bool>
+     </property>
+     <property name="maximum">
+      <number>1000000000</number>
+     </property>
+     <property name="singleStep">
+      <number>1</number>
+     </property>
+     <property name="stepType">
+      <enum>QAbstractSpinBox::AdaptiveDecimalStepType</enum>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="0">
+    <widget class="QRadioButton" name="byRange">
+     <property name="text">
+      <string>Range of Numbers:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="7" column="1" colspan="3">
+    <widget class="QLineEdit" name="numList"/>
+   </item>
+   <item row="10" column="0" colspan="5">
+    <layout class="QHBoxLayout" name="horizontalLayout">
+     <item>
+      <widget class="QPushButton" name="reset">
+       <property name="text">
+        <string>Reset</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="horizontalSpacer_2">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="run">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="text">
+        <string>Run</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item row="4" column="0">
+    <widget class="QLabel" name="label_3">
+     <property name="text">
+      <string>Number of Values per Thread:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="0">
+    <widget class="QLabel" name="label">
+     <property name="text">
+      <string>Base (Between 2 and 36):</string>
+     </property>
+    </widget>
+   </item>
+   <item row="6" column="3">
+    <widget class="QLabel" name="maxLabel">
+     <property name="text">
+      <string>Maximum: </string>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="1">
+    <widget class="CSpinBox64U" name="minRange">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="accelerated">
+      <bool>true</bool>
+     </property>
+     <property name="showGroupSeparator" stdset="0">
+      <bool>true</bool>
+     </property>
+     <property name="maximum">
+      <number>1000000000</number>
+     </property>
+     <property name="stepType">
+      <enum>QAbstractSpinBox::AdaptiveDecimalStepType</enum>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="2">
+    <widget class="QLabel" name="label_4">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="text">
+      <string>to</string>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="1" colspan="2">
+    <widget class="QLineEdit" name="numCores">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="1" rowspan="2">
+    <widget class="QSpinBox" name="numThreads">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="minimum">
+      <number>1</number>
+     </property>
+     <property name="maximum">
+      <number>1000</number>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <layoutdefault spacing="6" margin="11"/>
+ <customwidgets>
+  <customwidget>
+   <class>CSpinBox64</class>
+   <extends>QSpinBox</extends>
+   <header>SpinBox64.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CSpinBox64U</class>
+   <extends>QSpinBox</extends>
+   <header>SpinBox64U.h</header>
+  </customwidget>
+ </customwidgets>
+ <tabstops>
+  <tabstop>base</tabstop>
+  <tabstop>numThreads</tabstop>
+  <tabstop>numCores</tabstop>
+  <tabstop>numPerThread</tabstop>
+  <tabstop>byRange</tabstop>
+  <tabstop>minRange</tabstop>
+  <tabstop>maxRange</tabstop>
+  <tabstop>byNumbers</tabstop>
+  <tabstop>numList</tabstop>
+  <tabstop>results</tabstop>
+  <tabstop>reset</tabstop>
+  <tabstop>run</tabstop>
+ </tabstops>
+ <resources>
+  <include location="application.qrc"/>
+ </resources>
+ <connections/>
+</ui>
