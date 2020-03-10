@@ -597,9 +597,9 @@ void CSpinBox64U::connectLineEdit()
 {
     if ( !lineEdit() )
         return;
-    connect( lineEdit(), SIGNAL( textChanged( QString ) ), this, SLOT( _q_editorTextChanged( QString ) ) );
-    connect( lineEdit(), SIGNAL( cursorPositionChanged( int, int ) ), this, SLOT( _q_editorCursorPositionChanged( int, int ) ) );
-    connect( lineEdit(), SIGNAL( cursorPositionChanged( int, int ) ), this, SLOT( updateMicroFocus() ) );
+    (void)connect( lineEdit(), &QLineEdit::textChanged, this, &CSpinBox64U::slotEditorTextChanged );
+    (void)connect( lineEdit(), &QLineEdit::cursorPositionChanged, this, &CSpinBox64U::slotEditorCursorPositionChanged );
+    (void)connect( lineEdit(), &QLineEdit::cursorPositionChanged, this, &CSpinBox64U::updateMicroFocus );
 }
 
 bool CSpinBox64U::wrapping() const
