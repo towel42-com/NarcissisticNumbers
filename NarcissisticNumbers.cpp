@@ -59,8 +59,9 @@ CNarcissisticNumbers::CNarcissisticNumbers( QWidget* parent )
     (void)connect( fImpl->minRange, static_cast<void (CSpinBox64U::*)( uint64_t )>( &CSpinBox64U::valueChanged ), this, [ this ]() { slotRangeChanged(); } );
     (void)connect( fImpl->base, static_cast<void ( QSpinBox::* )( int )>( &QSpinBox::valueChanged ), fImpl->minRange, &CSpinBox64U::setDisplayIntegerBase );
     (void)connect( fImpl->base, static_cast<void ( QSpinBox::* )( int )>( &QSpinBox::valueChanged ), fImpl->maxRange, &CSpinBox64U::setDisplayIntegerBase ) ;
+    (void)connect( fImpl->setToMax, &QAbstractButton::clicked, this, [ this ]() { slotSetToMax(); } );
 
-    fImpl->numCores->setText( QString::number( std::thread::hardware_concurrency() ) );
+    fImpl->numCoresLabel->setText( tr( "Number of Cores: %1" ).arg( std::thread::hardware_concurrency() ) );
     loadSettings();
     setFocus( Qt::MouseFocusReason );
     slotChanged();
@@ -294,7 +295,12 @@ void CNarcissisticNumbers::slotRangeChanged()
     }
     else if ( rangeSize > 100000 )
     {
-        fImpl->numPerThread->setValue( rangeSize / 10000 );
+        fImpl->numPerThread->setValue( rangeSize / 100000 );
     }
 }
 
+void CNarcissisticNumbers::slotSetToMax()
+{
+    fImpl->minRange->setValue( 0 );
+    fImpl->maxRange->setValue( CSpinBox64U::maxAllowed() );
+}

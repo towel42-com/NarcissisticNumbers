@@ -53,6 +53,7 @@ public slots:
     void slotReset();
     void slotShowResults();
     void slotRangeChanged();
+    void slotSetToMax();
 private:
     void updateUI( bool finished );
     void setNumbersList( const std::list< uint64_t >& numbers );
