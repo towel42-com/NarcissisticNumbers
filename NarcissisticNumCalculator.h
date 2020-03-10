@@ -71,18 +71,18 @@ public:
     CNarcissisticNumCalculator( bool saveSettings=true );
     ~CNarcissisticNumCalculator();
     bool parse( int argc, char** argv );
-    std::chrono::system_clock::duration run( const std::function< int64_t( int64_t, int64_t ) >& pwrFunction );
+    std::chrono::system_clock::duration run( const std::function< uint64_t( uint64_t, uint64_t ) >& pwrFunction );
     std::chrono::system_clock::duration run();
 
     void init();
-    using TReportFunctionType = std::function< bool( int64_t min, int64_t max, int64_t curr ) >;
+    using TReportFunctionType = std::function< bool( uint64_t min, uint64_t max, uint64_t curr ) >;
 
     void launch( const TReportFunctionType& reportFunction, bool callInLoop );
-    int64_t partition( const TReportFunctionType & reportFunction, bool callInLoop );
+    uint64_t partition( const TReportFunctionType & reportFunction, bool callInLoop );
 
     void setBase( int value ) { if ( ( value < 2 ) || ( value > 36 ) ) return; fBase = value; }
     void setNumThreads( int value ){ fNumThreads = value; }
-    void setNumPerThread( int value ) { fNumPerThread = value; }
+    void setNumPerThread( uint64_t value ) { fNumPerThread = value; }
     void setByRange( bool value ){ std::get< 0 >( fNumbers ) = value; }
     void setRange( const std::pair< uint64_t, uint64_t >& value ) { std::get< 1 >( fNumbers ) = value; }
     void setNumbersList( const std::list< uint64_t >& values ) { std::get< 2 >( fNumbers ) = values; }
@@ -106,29 +106,29 @@ private:
     void dumpNumbers( const std::list< uint64_t >& numbers ) const;
     void report();
     void reportFindings();
-    std::pair< bool, bool > checkAndAddValue( int64_t value );
+    std::pair< bool, bool > checkAndAddValue( uint64_t value );
 
     using TPartitionSet = std::tuple< bool, std::list< uint64_t >, std::pair< uint64_t, uint64_t > >;
 
-    void findNarcissistic( const TPartitionSet& currRange );
-    void findNarcissisticRange( uint64_t min, uint64_t max );
-    void findNarcissisticRange( const std::pair< uint64_t, uint64_t >& range );
-    void findNarcissisticList( const std::list< uint64_t >& values );
+    void findNarcissistic( size_t threadNum, const TPartitionSet& currRange );
+    void findNarcissisticRange( size_t threadNum, uint64_t min, uint64_t max );
+    void findNarcissisticRange( size_t threadNum, const std::pair< uint64_t, uint64_t >& range );
+    void findNarcissisticList( size_t threadNum, const std::list< uint64_t >& values );
     void reportNumPartitionsRemaining( std::chrono::system_clock::time_point& prev, bool force = false );
 
-    void addNarcissisticValue( int64_t value );
+    void addNarcissisticValue( uint64_t value );
 
     void addPartition( const std::pair< uint64_t, uint64_t >& range );
     void addPartition( const std::list< uint64_t >& list );
-    void analyzeNextPartition();
+    void analyzeNextPartition( size_t threadNum );
 
     // setup
     int fBase{ 10 };
     std::tuple< bool, std::pair< uint64_t, uint64_t >, std::list< uint64_t > > fNumbers = std::make_tuple< bool, std::pair< uint64_t, uint64_t >, std::list< uint64_t > >( true, { 0, kDefaultMaxNum }, std::list< uint64_t >() );
-    int fNumPerThread{ 100 };
-    int fReportSeconds{ 5 };
+    uint64_t fNumPerThread{ 100 };
+    int32_t fReportSeconds{ 5 };
     uint32_t fNumThreads;
-    std::function< int64_t( int64_t, int64_t ) > fPowerFunction = []( int64_t x, int64_t y )->int64_t { return NUtils::power( x, y ); };
+    std::function< uint64_t( uint64_t, uint64_t ) > fPowerFunction = []( uint64_t x, uint64_t y )->uint64_t { return NUtils::power( x, y ); };
 
 
     // results
@@ -139,7 +139,7 @@ private:
     // used to do the thread pool
     std::mutex fMutex;
     std::condition_variable fConditionVariable;
-    std::list< std::future< void > > fHandles;
+    std::vector< std::pair< std::future< void >, std::tuple< uint64_t, uint64_t, uint64_t > > > fHandles;
 
     // computational values
     std::list< TPartitionSet > fPartitions;
