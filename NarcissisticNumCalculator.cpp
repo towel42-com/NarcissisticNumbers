@@ -21,7 +21,7 @@
 // SOFTWARE.
 
 #include "NarcissisticNumCalculator.h"
-#include "utils.h"
+#include "SABUtils/utils.h"
 
 #include <QSettings>
 #include <QLocale>

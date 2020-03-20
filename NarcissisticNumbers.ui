@@ -263,7 +263,7 @@
   <customwidget>
    <class>CSpinBox64U</class>
    <extends>QSpinBox</extends>
-   <header>SpinBox64U.h</header>
+   <header>SABUtils/SpinBox64U.h</header>
   </customwidget>
  </customwidgets>
  <tabstops>

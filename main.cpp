@@ -22,7 +22,7 @@
 
 #include "NarcissisticNumbers.h"
 #include "NarcissisticNumCalculator.h"
-#include "utils.h"
+#include "SABUtils/utils.h"
 
 #include <QApplication>
 #include <unordered_map>

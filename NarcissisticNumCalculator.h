@@ -23,7 +23,7 @@
 #ifndef __NARCISSISTICNUMCALCULATOR_H
 #define __NARCISSISTICNUMCALCULATOR_H
 
-#include "utils.h"
+#include "SABUtils/utils.h"
 
 #include <algorithm>
 #include <list>

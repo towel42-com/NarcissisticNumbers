@@ -22,9 +22,9 @@
 
 #include "NarcissisticNumbers.h"
 #include "NarcissisticNumCalculator.h"
-#include "utils.h"
-#include "SpinBox64.h"
-#include "SpinBox64U.h"
+#include "SABUtils/utils.h"
+#include "SABUtils/SpinBox64.h"
+#include "SABUtils/SpinBox64U.h"
 
 #include "ui_NarcissisticNumbers.h"
 

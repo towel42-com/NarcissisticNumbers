@@ -22,22 +22,16 @@
 
 set(qtproject_SRCS
     main.cpp    
-    utils.cpp
     NarcissisticNumCalculator.cpp
     NarcissisticNumbers.cpp
-    SpinBox64.cpp
-    SpinBox64U.cpp
 )
 
 set(qtproject_H
     NarcissisticNumbers.h
-    SpinBox64.h
-    SpinBox64U.h
 )
 
 set(project_H
     NarcissisticNumCalculator.h
-    utils.h
 )
 
 set(qtproject_UIS
@@ -46,7 +40,7 @@ set(qtproject_UIS
 
 
 set(qtproject_QRC
-	application.qrc
+    application.qrc
 )
 
 file(GLOB qtproject_QRC_SOURCES "resources/*")
